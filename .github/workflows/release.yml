@@ -1,0 +1,93 @@
+name: Release
+
+# Tags a release and publishes a downloadable plugin ZIP whenever the version
+# in version.php is bumped on the default branch. The ZIP attached to the
+# GitHub release is what the Moodle Plugins directory can reference for the
+# in-Moodle "Install this update" download link.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - version.php
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read plugin metadata from version.php
+        id: meta
+        run: |
+          # Define the Moodle constants version.php relies on so it can be
+          # required standalone (outside a Moodle install).
+          read_meta() {
+            php -r '
+              define("MOODLE_INTERNAL", true);
+              define("MATURITY_ALPHA", 50);
+              define("MATURITY_BETA", 100);
+              define("MATURITY_RC", 150);
+              define("MATURITY_STABLE", 200);
+              $plugin = new stdClass();
+              require "version.php";
+              echo $plugin->'"$1"';
+            '
+          }
+          release=$(read_meta release)
+          version=$(read_meta version)
+          component=$(read_meta component)
+          if [ -z "$release" ] || [ -z "$version" ] || [ -z "$component" ]; then
+            echo "::error::Could not read release/version/component from version.php"
+            exit 1
+          fi
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "component=$component" >> "$GITHUB_OUTPUT"
+          echo "tag=v$release" >> "$GITHUB_OUTPUT"
+          echo "Detected $component release $release (version $version)"
+
+      - name: Check whether the tag already exists
+        id: tagcheck
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.meta.outputs.tag }} already exists; skipping release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build plugin ZIP
+        if: steps.tagcheck.outputs.exists == 'false'
+        run: |
+          # Moodle expects the archive to extract into a folder named after the
+          # plugin's leaf name (the part after local_).
+          plugindir="${{ steps.meta.outputs.component }}"
+          plugindir="${plugindir#local_}"
+          mkdir -p "build/$plugindir"
+          rsync -a --exclude='.git' --exclude='.github' --exclude='build' \
+            ./ "build/$plugindir/"
+          (cd build && zip -r -q "../${{ steps.meta.outputs.component }}-${{ steps.meta.outputs.tag }}.zip" "$plugindir")
+          echo "Built ${{ steps.meta.outputs.component }}-${{ steps.meta.outputs.tag }}.zip"
+
+      - name: Create tag and GitHub release
+        if: steps.tagcheck.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.meta.outputs.tag }}"
+          git tag "$tag"
+          git push origin "$tag"
+          gh release create "$tag" \
+            --title "$tag" \
+            --generate-notes \
+            "${{ steps.meta.outputs.component }}-$tag.zip"
