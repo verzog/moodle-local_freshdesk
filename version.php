@@ -29,6 +29,6 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->component = 'local_freshdesk';
 $plugin->version   = 2026061101;
 $plugin->requires  = 2024100700; // Requires Moodle 4.5 or later.
-$plugin->supported = [405, 501]; // Tested on Moodle 4.5 and 5.1.
+$plugin->supported = [405, 502]; // Tested on Moodle 4.5 through 5.2.
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->release   = '2.4.7';
