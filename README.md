@@ -21,8 +21,10 @@ A Moodle local plugin that adds a floating **Get Help** button to every page, op
 
 ## Requirements
 
-- Moodle 4.5 or later
+- Moodle 4.5 or later (tested on 4.5 and 5.1)
 - A Freshdesk account with API access
+- The Moodle server must be able to make outbound HTTPS requests to your
+  `*.freshdesk.com` domain
 
 ## Installation
 
@@ -55,6 +57,11 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 | Freshdesk API key | Found in Freshdesk under Profile Settings → Your API Key | *(empty)* |
 | Widget button colour | Hex colour for the Get Help button | `#006B6B` |
 | Hide for site administrators | Suppress the widget for Moodle admins | Disabled |
+
+> **Important:** the portal URL must be your `*.freshdesk.com` domain (the
+> domain the Freshdesk REST API lives on), and it must be HTTPS. A custom
+> support-portal domain (CNAME such as `support.example.com`) will not work,
+> because the plugin sends API requests to this URL.
 
 ## Access modes
 
@@ -107,15 +114,50 @@ Suggested articles are driven by the Freshdesk knowledge base search API. To max
 
 The widget searches with up to two terms simultaneously: the current course full name and the activity type from the page URL (e.g. on a quiz page inside a named course, it searches both `Introduction to Moodle` and `quiz`).
 
+## Troubleshooting
+
+If the widget is "not working" on a new site, work through these in order:
+
+1. **No Get Help button appears at all**
+   - Check **Site administration → Plugins → Local plugins → Freshdesk Support
+     Widget**: *Enable widget* must be ticked.
+   - If you are logged in as an admin, check *Hide for site administrators* is
+     not ticked.
+   - Purge all caches (**Site administration → Development → Purge caches**) —
+     hook callbacks and AMD JavaScript are both cached.
+   - Check the browser's JavaScript console for errors from another plugin or
+     theme: a JS exception elsewhere on the page can stop AMD modules loading.
+2. **Button appears, but search finds nothing / articles won't load**
+   - Confirm the portal URL is your own `https://yourcompany.freshdesk.com`
+     domain (not a custom CNAME portal domain, not HTTP).
+   - Confirm the API key is correct (Freshdesk → Profile Settings → Your API
+     Key) and belongs to an agent with knowledge base access.
+   - Articles must be **published** and in folders visible to **All Users**.
+   - Enable developer debugging (**Site administration → Development →
+     Debugging → DEVELOPER**): the plugin now logs the exact Freshdesk HTTP
+     status and response when an API call fails.
+   - Confirm the Moodle server can reach Freshdesk:
+     `curl -u YOUR_API_KEY:X https://yourcompany.freshdesk.com/api/v2/search/solutions?term=test`
+     run from the Moodle server itself (firewalls and proxies on a new host
+     are a common cause).
+3. **Ticket submission fails**
+   - The error dialog's debug info (visible with debugging enabled) includes
+     the Freshdesk HTTP status code and response body.
+   - HTTP 401 means a wrong API key; HTTP 403 means the agent lacks
+     permission to create tickets.
+
 ## Building the JavaScript
 
-The `amd/build/widget.min.js` file is currently an unminified copy of the source. To generate a proper minified build, run Grunt from your Moodle root:
+`amd/build/widget.min.js` must be regenerated whenever `amd/src/widget.js`
+changes. From a Moodle checkout:
 
 ```bash
 cd /path/to/moodle
 npm install
 grunt amd --root=local/freshdesk
 ```
+
+(or minify `amd/src/widget.js` with terser into `amd/build/widget.min.js`).
 
 ## File Structure
 

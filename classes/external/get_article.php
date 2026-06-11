@@ -69,7 +69,7 @@ class get_article extends external_api {
         // The widget is exposed site-wide; validate the system context and require the
         // local/freshdesk:use capability so guest / unauthenticated sessions and any
         // role explicitly denied this capability cannot reach the proxy.
-        $context = \context_system::instance();
+        $context = \core\context\system::instance();
         self::validate_context($context);
         require_capability('local/freshdesk:use', $context);
 
@@ -78,11 +78,16 @@ class get_article extends external_api {
         $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
+            debugging(
+                'local_freshdesk: article fetch skipped — plugin disabled or portal URL / API key not configured.',
+                DEBUG_DEVELOPER
+            );
             return $empty;
         }
 
         // Reject non-HTTPS portal URLs to ensure the API key is never sent in clear text.
         if (stripos($portalurl, 'https://') !== 0) {
+            debugging('local_freshdesk: article fetch skipped — portal URL must start with https://.', DEBUG_DEVELOPER);
             return $empty;
         }
 
@@ -103,6 +108,9 @@ class get_article extends external_api {
         $httpcode     = (int) ($info['http_code'] ?? 0);
 
         if ($httpcode !== 200) {
+            $failure = 'local_freshdesk: article fetch failed (HTTP ' . $httpcode . '): ' .
+                substr((string) $responsebody, 0, 300);
+            debugging($failure, DEBUG_DEVELOPER);
             return $empty;
         }
 
