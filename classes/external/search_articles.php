@@ -74,8 +74,9 @@ class search_articles extends external_api {
         require_capability('local/freshdesk:use', $context);
 
         $config    = get_config('local_freshdesk');
-        $apikey    = (string) ($config->api_key ?? '');
-        $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
+        // Trim to tolerate whitespace accidentally pasted with the key or URL.
+        $apikey    = trim((string) ($config->api_key ?? ''));
+        $portalurl = rtrim(trim((string) ($config->portal_url ?? '')), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
             debugging(

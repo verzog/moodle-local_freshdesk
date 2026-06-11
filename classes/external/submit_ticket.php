@@ -105,8 +105,9 @@ class submit_ticket extends external_api {
         require_capability('local/freshdesk:use', $context);
 
         $config    = get_config('local_freshdesk');
-        $apikey    = (string) ($config->api_key ?? '');
-        $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
+        // Trim to tolerate whitespace accidentally pasted with the key or URL.
+        $apikey    = trim((string) ($config->api_key ?? ''));
+        $portalurl = rtrim(trim((string) ($config->portal_url ?? '')), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
             throw new \moodle_exception(
@@ -157,6 +158,23 @@ class submit_ticket extends external_api {
         $description = implode("\n", $descparts);
         $authheader  = 'Authorization: Basic ' . base64_encode($apikey . ':X');
 
+        // Optional ticket routing fields. Some Freshdesk accounts mark Type,
+        // Group or Agent as mandatory on submission and reject API requests
+        // that omit them, so include each one when configured.
+        $extrafields  = [];
+        $tickettype   = trim((string) ($config->ticket_type ?? ''));
+        $groupid      = (int) ($config->group_id ?? 0);
+        $responderid  = (int) ($config->responder_id ?? 0);
+        if ($tickettype !== '') {
+            $extrafields['type'] = $tickettype;
+        }
+        if ($groupid > 0) {
+            $extrafields['group_id'] = $groupid;
+        }
+        if ($responderid > 0) {
+            $extrafields['responder_id'] = $responderid;
+        }
+
         // Decode and validate screenshot if one was supplied.
         $screenshotpath = '';
         if ($params['screenshot'] !== '') {
@@ -193,12 +211,15 @@ class submit_ticket extends external_api {
                 'priority'      => '1',
                 'attachments[]' => new \CURLFile($screenshotpath, 'image/jpeg', 'screenshot.jpg'),
             ];
+            foreach ($extrafields as $field => $value) {
+                $postdata[$field] = (string) $value;
+            }
             $responsebody = $curl->post($portalurl . '/api/v2/tickets', $postdata);
             @unlink($screenshotpath);
         } else {
             // JSON request (no attachment).
             $curl->setHeader(['Content-Type: application/json', $authheader]);
-            $payload = json_encode([
+            $payload = json_encode(array_merge([
                 'email'       => $USER->email,
                 'name'        => fullname($USER),
                 'subject'     => $params['subject'],
@@ -206,7 +227,7 @@ class submit_ticket extends external_api {
                 'source'      => 2,
                 'status'      => 2,
                 'priority'    => 1,
-            ]);
+            ], $extrafields));
             $responsebody = $curl->post($portalurl . '/api/v2/tickets', $payload);
         }
 

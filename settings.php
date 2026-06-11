@@ -57,6 +57,30 @@ if ($hassiteconfig) {
     ));
 
     $settings->add(new admin_setting_configtext(
+        'local_freshdesk/ticket_type',
+        get_string('ticket_type', 'local_freshdesk'),
+        get_string('ticket_type_desc', 'local_freshdesk'),
+        '',
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_freshdesk/group_id',
+        get_string('group_id', 'local_freshdesk'),
+        get_string('group_id_desc', 'local_freshdesk'),
+        '',
+        PARAM_RAW_TRIMMED
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_freshdesk/responder_id',
+        get_string('responder_id', 'local_freshdesk'),
+        get_string('responder_id_desc', 'local_freshdesk'),
+        '',
+        PARAM_RAW_TRIMMED
+    ));
+
+    $settings->add(new admin_setting_configtext(
         'local_freshdesk/widget_color',
         get_string('widget_color', 'local_freshdesk'),
         get_string('widget_color_desc', 'local_freshdesk'),
