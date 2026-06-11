@@ -17,11 +17,12 @@ A Moodle local plugin that adds a floating **Get Help** button to every page, op
 - User role detection (Staff / Student) based on Moodle course capabilities
 - Tiered access via the `local/freshdesk:use` capability — logged-in users get the full in-page widget, guests get a pass-through link to the Freshdesk portal
 - Optional setting to hide the widget from site administrators
-- Configurable portal URL, API key, and button colour
+- Optional **default ticket type, group and agent** settings — required if your Freshdesk account marks the Type, Group or Agent ticket fields as mandatory on submission
+- Configurable portal URL, API key, button colour and icon
 
 ## Requirements
 
-- Moodle 4.5 or later (tested on 4.5 and 5.1)
+- Moodle 4.5 or later (CI-tested on 4.5, 5.0, 5.1 and 5.2)
 - A Freshdesk account with API access
 - The Moodle server must be able to make outbound HTTPS requests to your
   `*.freshdesk.com` domain
@@ -32,6 +33,9 @@ A Moodle local plugin that adds a floating **Get Help** button to every page, op
    ```
    /path/to/moodle/local/freshdesk/
    ```
+   > **Moodle 5.x with the `public/` directory layout:** the web root moved, so
+   > the correct path is `/path/to/moodle/public/local/freshdesk/`. If the
+   > plugin is copied to the old path, Moodle will not detect it at all.
 
 2. Log in as a site administrator and go to:
    **Site Administration → Notifications**
@@ -55,8 +59,20 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 | Enable widget | Show or hide the widget site-wide | Enabled |
 | Freshdesk portal URL | Your Freshdesk account URL | `https://thefeaturecreep.freshdesk.com` |
 | Freshdesk API key | Found in Freshdesk under Profile Settings → Your API Key | *(empty)* |
+| Default ticket type | Optional. Sent as the ticket `type`; must exactly match one of the values in Freshdesk Admin → Workflows → Ticket Fields → Type | *(empty)* |
+| Default group ID | Optional. Numeric Freshdesk group ID to assign new tickets to | *(empty)* |
+| Default agent ID | Optional. Numeric Freshdesk agent ID to assign new tickets to | *(empty)* |
 | Widget button colour | Hex colour for the Get Help button | `#006B6B` |
+| Widget icon | Unicode character or image URL for the button and modal header | 🎓 |
 | Hide for site administrators | Suppress the widget for Moodle admins | Disabled |
+
+> **Mandatory Freshdesk fields:** if your Freshdesk account marks the Type,
+> Group or Agent fields as *Required when submitting the form*, the API
+> rejects tickets that omit them (HTTP 400 `Validation failed` /
+> `missing_field`). Either untick the requirement in Freshdesk Admin →
+> Workflows → Ticket Fields, or fill in the corresponding default
+> type/group/agent settings above. The numeric group and agent IDs are
+> visible in the URL when editing them under Freshdesk Admin → Team.
 
 > **Important:** the portal URL must be your `*.freshdesk.com` domain (the
 > domain the Freshdesk REST API lives on), and it must be HTTPS. A custom
@@ -143,8 +159,15 @@ If the widget is "not working" on a new site, work through these in order:
 3. **Ticket submission fails**
    - The error dialog's debug info (visible with debugging enabled) includes
      the Freshdesk HTTP status code and response body.
-   - HTTP 401 means a wrong API key; HTTP 403 means the agent lacks
-     permission to create tickets.
+   - HTTP 400 `Validation failed` with `missing_field` errors means your
+     Freshdesk account marks Type, Group and/or Agent as mandatory on
+     submission — see the **Mandatory Freshdesk fields** note under
+     Configuration. This is the most common cause of "Failed to submit
+     ticket" while knowledge base search still works.
+   - HTTP 401 means a wrong API key — note that API keys are per-agent *and*
+     per-portal, so a key from a different Freshdesk account always fails.
+     The plugin trims pasted whitespace from the key automatically.
+   - HTTP 403 means the agent lacks permission to create tickets.
 
 ## Building the JavaScript
 
