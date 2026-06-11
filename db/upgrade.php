@@ -217,5 +217,15 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026041024, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026061100) {
+        // Moodle 5.x compatibility pass: widget config now passed via js_call_amd
+        // (data_for_js is deprecated); cache and context classes use their
+        // core_cache / core\context namespaces; Freshdesk API failures now emit
+        // debugging() diagnostics so admins can see why search/tickets fail;
+        // clipboard paste is only captured while the contact form is open.
+        // No database changes required.
+        upgrade_plugin_savepoint(true, 2026061100, 'local', 'freshdesk');
+    }
+
     return true;
 }

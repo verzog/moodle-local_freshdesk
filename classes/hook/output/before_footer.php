@@ -93,7 +93,9 @@ class before_footer {
         $widgetcolor = (string) ($config->widget_color ?? '#006B6B');
         $widgeticon  = (string) ($config->widget_icon ?? '🎓');
 
-        $PAGE->requires->data_for_js('local_freshdesk_config', [
+        // Config is passed as a js_call_amd argument rather than via
+        // data_for_js(), which is deprecated and scheduled for removal.
+        $PAGE->requires->js_call_amd('local_freshdesk/widget', 'init', [[
             'portalUrl'      => $portalurl,
             'userEmail'      => $useremail,
             'userName'       => $username,
@@ -106,8 +108,6 @@ class before_footer {
             'hasCapability'  => $hascap,
             'widgetColor'    => $widgetcolor,
             'widgetIcon'     => $widgeticon,
-        ]);
-
-        $PAGE->requires->js_call_amd('local_freshdesk/widget', 'init');
+        ]]);
     }
 }

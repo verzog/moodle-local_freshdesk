@@ -29,7 +29,7 @@
  */
 define(['core/ajax', 'core/templates', 'core/str'], function(Ajax, Templates, Str) {
 
-    /** @type {Object} Plugin configuration passed from PHP via data_for_js. */
+    /** @type {Object} Plugin configuration passed from PHP via js_call_amd. */
     let cfg = {};
 
     /** @type {Object} Pre-translated UI strings keyed by identifier. */
@@ -601,7 +601,18 @@ define(['core/ajax', 'core/templates', 'core/str'], function(Ajax, Templates, St
         });
 
         document.addEventListener('paste', function(e) {
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            // Only capture pastes while the contact form is open, so pasting
+            // an image elsewhere on the page (e.g. into a text editor) is
+            // never swallowed as a screenshot.
+            const contactForm = document.getElementById('fd-contact-form');
+            if (overlay.style.display !== 'block' || !contactForm || contactForm.style.display !== 'flex') {
+                return;
+            }
+            const clipboard = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData);
+            if (!clipboard || !clipboard.items) {
+                return;
+            }
+            const items = clipboard.items;
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf('image') !== -1) {
                     processScreenshotFile(items[i].getAsFile());
@@ -713,9 +724,11 @@ define(['core/ajax', 'core/templates', 'core/str'], function(Ajax, Templates, St
     return {
         /**
          * Initialise the widget.
+         *
+         * @param {Object} config Plugin configuration passed from PHP.
          */
-        init: function() {
-            cfg = window.local_freshdesk_config || {};
+        init: function(config) {
+            cfg = config || window.local_freshdesk_config || {};
 
             if (!cfg.portalUrl) {
                 return Promise.resolve();

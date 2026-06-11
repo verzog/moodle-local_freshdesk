@@ -69,7 +69,7 @@ class search_articles extends external_api {
         // The widget is exposed site-wide; validate the system context and require the
         // local/freshdesk:use capability so guest / unauthenticated sessions and any
         // role explicitly denied this capability cannot reach the proxy.
-        $context = \context_system::instance();
+        $context = \core\context\system::instance();
         self::validate_context($context);
         require_capability('local/freshdesk:use', $context);
 
@@ -78,15 +78,18 @@ class search_articles extends external_api {
         $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
+            debugging('local_freshdesk: search skipped — plugin disabled or portal URL / API key not configured.',
+                DEBUG_DEVELOPER);
             return [];
         }
 
         // Reject non-HTTPS portal URLs to ensure the API key is never sent in clear text.
         if (stripos($portalurl, 'https://') !== 0) {
+            debugging('local_freshdesk: search skipped — portal URL must start with https://.', DEBUG_DEVELOPER);
             return [];
         }
 
-        $cache    = \cache::make('local_freshdesk', 'search_results');
+        $cache    = \core_cache\cache::make('local_freshdesk', 'search_results');
         $cachekey = md5(strtolower(trim($params['term'])));
         $cached   = $cache->get($cachekey);
         if ($cached !== false) {
@@ -110,6 +113,8 @@ class search_articles extends external_api {
         $httpcode     = (int) ($info['http_code'] ?? 0);
 
         if ($httpcode !== 200) {
+            debugging('local_freshdesk: knowledge base search failed (HTTP ' . $httpcode . '): ' .
+                substr((string) $responsebody, 0, 300), DEBUG_DEVELOPER);
             return [];
         }
 

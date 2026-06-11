@@ -100,7 +100,7 @@ class submit_ticket extends external_api {
         // The widget is exposed site-wide; validate the system context and require the
         // local/freshdesk:use capability so guest / unauthenticated sessions and any
         // role explicitly denied this capability cannot submit tickets via the proxy.
-        $context = \context_system::instance();
+        $context = \core\context\system::instance();
         self::validate_context($context);
         require_capability('local/freshdesk:use', $context);
 
@@ -109,12 +109,14 @@ class submit_ticket extends external_api {
         $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
-            throw new \moodle_exception('errorsubmitting', 'local_freshdesk');
+            throw new \moodle_exception('errorsubmitting', 'local_freshdesk', '', null,
+                'Plugin disabled or portal URL / API key not configured.');
         }
 
         // Reject non-HTTPS portal URLs to ensure the API key is never sent in clear text.
         if (stripos($portalurl, 'https://') !== 0) {
-            throw new \moodle_exception('errorsubmitting', 'local_freshdesk');
+            throw new \moodle_exception('errorsubmitting', 'local_freshdesk', '', null,
+                'Portal URL must start with https://.');
         }
 
         // Build HTML ticket description with page context.
