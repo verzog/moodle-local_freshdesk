@@ -109,14 +109,24 @@ class submit_ticket extends external_api {
         $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
-            throw new \moodle_exception('errorsubmitting', 'local_freshdesk', '', null,
-                'Plugin disabled or portal URL / API key not configured.');
+            throw new \moodle_exception(
+                'errorsubmitting',
+                'local_freshdesk',
+                '',
+                null,
+                'Plugin disabled or portal URL / API key not configured.'
+            );
         }
 
         // Reject non-HTTPS portal URLs to ensure the API key is never sent in clear text.
         if (stripos($portalurl, 'https://') !== 0) {
-            throw new \moodle_exception('errorsubmitting', 'local_freshdesk', '', null,
-                'Portal URL must start with https://.');
+            throw new \moodle_exception(
+                'errorsubmitting',
+                'local_freshdesk',
+                '',
+                null,
+                'Portal URL must start with https://.'
+            );
         }
 
         // Build HTML ticket description with page context.

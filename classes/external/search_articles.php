@@ -78,8 +78,10 @@ class search_articles extends external_api {
         $portalurl = rtrim((string) ($config->portal_url ?? ''), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
-            debugging('local_freshdesk: search skipped — plugin disabled or portal URL / API key not configured.',
-                DEBUG_DEVELOPER);
+            debugging(
+                'local_freshdesk: search skipped — plugin disabled or portal URL / API key not configured.',
+                DEBUG_DEVELOPER
+            );
             return [];
         }
 
@@ -113,8 +115,9 @@ class search_articles extends external_api {
         $httpcode     = (int) ($info['http_code'] ?? 0);
 
         if ($httpcode !== 200) {
-            debugging('local_freshdesk: knowledge base search failed (HTTP ' . $httpcode . '): ' .
-                substr((string) $responsebody, 0, 300), DEBUG_DEVELOPER);
+            $failure = 'local_freshdesk: knowledge base search failed (HTTP ' . $httpcode . '): ' .
+                substr((string) $responsebody, 0, 300);
+            debugging($failure, DEBUG_DEVELOPER);
             return [];
         }
 
