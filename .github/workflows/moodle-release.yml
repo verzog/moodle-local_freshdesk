@@ -1,10 +1,21 @@
 name: Releasing in the Plugins directory
 
-on:
-  push:
-    tags:
-      - v*
+# DORMANT — DOES NOT PUBLISH ANYWHERE RIGHT NOW.
+#
+# This workflow targets the legacy moodle.org/plugins web service
+# (local_plugins_add_version). That directory became read-only on 2026-07-20
+# when Moodle Marketplace (marketplace.moodle.com) replaced it, and the
+# Marketplace does not support API / GitHub-workflow uploads at launch
+# ("Plugin versions cannot be uploaded through the API" — Moodle's launch
+# limitations doc; restoration is targeted within ~a month of launch).
+#
+# The automatic "push: tags" trigger has therefore been removed so this no
+# longer fires — and fails — on every release. Only manual workflow_dispatch
+# remains, kept as scaffolding to adapt once the Marketplace upload API ships.
+# Until then, upload new versions manually via the Marketplace Plugin dashboard.
+# See issue #57.
 
+on:
   workflow_dispatch:
     inputs:
       tag:

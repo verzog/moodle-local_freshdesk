@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
   release:
@@ -95,16 +94,10 @@ jobs:
             --generate-notes \
             "${{ steps.meta.outputs.component }}-$tag.zip"
 
-      - name: Publish the new version to the Moodle Plugins directory
-        if: steps.tagcheck.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # The tag above is pushed with GITHUB_TOKEN, and GitHub deliberately
-          # does NOT fire the "push: tags" event for GITHUB_TOKEN pushes, so
-          # moodle-release.yml would never run on its own. workflow_dispatch is
-          # the documented exception that IS allowed to fire from GITHUB_TOKEN,
-          # so dispatch the publish workflow explicitly and pass it the tag.
-          gh workflow run moodle-release.yml \
-            --ref "${{ github.ref_name }}" \
-            -f tag="${{ steps.meta.outputs.tag }}"
+          # NOTE: this workflow no longer auto-publishes to the plugin directory.
+          # Moodle Marketplace (marketplace.moodle.com) replaced the read-only
+          # moodle.org/plugins directory on 2026-07-20 and does not support API /
+          # GitHub-workflow uploads at launch, so new versions must be uploaded
+          # manually via the Marketplace Plugin dashboard. The GitHub release and
+          # ZIP built above are what you hand to that manual upload. See issue #57;
+          # re-add automated publishing once Moodle ships the Marketplace upload API.
