@@ -169,38 +169,33 @@ If the widget is "not working" on a new site, work through these in order:
      The plugin trims pasted whitespace from the key automatically.
    - HTTP 403 means the agent lacks permission to create tickets.
 
-## Automatic updates via the Moodle Plugins directory
+## Releasing a new version
 
-Once this plugin is published in the
-[Moodle Plugins directory](https://moodle.org/plugins/), Moodle sites that
-installed it from there are notified of new releases under **Site
-administration → Notifications** and can update in place with a single click —
-no manual re-download required. For that to work each new version must be
-pushed to the directory, which this repository automates:
+This plugin is distributed via [Moodle Marketplace](https://marketplace.moodle.com/)
+(which replaced the `moodle.org/plugins` directory on 2026-07-20).
 
-1. **`release.yml`** runs when `version.php` is changed on `main`. It reads
-   `$plugin->release`, tags the commit `vX.Y.Z`, builds the plugin ZIP, and
-   creates a matching GitHub release.
-2. It then dispatches **`moodle-release.yml`**, which calls the
-   `local_plugins_add_version` Moodle web service to register the new version
-   in the Plugins directory (referencing the tag's zipball).
+> **Publishing is a manual step.** Moodle Marketplace does **not** support API
+> or GitHub-workflow uploads at launch — new plugin versions must be uploaded
+> by hand through the Marketplace **Plugin dashboard**. A version bump merged to
+> `main` therefore does **not** reach users on its own. Restoring automated
+> uploads is on Moodle's roadmap; until then, always complete the manual upload
+> below.
 
-The chain fires automatically because bumping `$plugin->version` and
-`$plugin->release` on `main` is the single trigger; `moodle-release.yml` can
-also be run on demand from the Actions tab (**workflow_dispatch**, supply the
-tag).
+To cut a release:
 
-**One-time maintainer setup:**
+1. Bump both `$plugin->version` (the integer date stamp) and `$plugin->release`
+   (the human version) in `version.php`, add a matching
+   `upgrade_plugin_savepoint` block in `db/upgrade.php`, and merge to `main`.
+2. On merge, **`release.yml`** tags the commit `vX.Y.Z`, builds the plugin ZIP,
+   and creates a matching GitHub release. This produces the artefact to upload —
+   it does not publish to the Marketplace.
+3. **Upload the ZIP** from that GitHub release as a new version on the plugin's
+   Moodle Marketplace Plugin dashboard, and add the release notes.
 
-- Register the plugin once in the Moodle Plugins directory (manual submission
-  and approval by the moodle.org reviewers).
-- Add a repository secret named **`MOODLE_ORG_TOKEN`** — a moodle.org web
-  service token for the `local_plugins_add_version` function, obtained from
-  your moodle.org account. Without it `moodle-release.yml` cannot publish.
-
-To cut a release, bump both `$plugin->version` (the integer date stamp) and
-`$plugin->release` (the human version) in `version.php`, add a matching
-`upgrade_plugin_savepoint` block in `db/upgrade.php`, and merge to `main`.
+Sites that installed the plugin from the Marketplace are then notified of the
+new version. (`moodle-release.yml` is retained but dormant — it targeted the
+retired `moodle.org` web service and is kept only as scaffolding for a future
+Marketplace upload API.)
 
 ## Building the JavaScript
 
