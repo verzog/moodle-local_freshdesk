@@ -227,5 +227,14 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026061100, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026080300) {
+        // Release automation: the version-bump release workflow now dispatches the
+        // Moodle Plugins directory publish workflow directly, so a new version
+        // reaches the directory (and site auto-update notifications) without a
+        // manual step. Language strings reordered alphabetically. No database
+        // changes required.
+        upgrade_plugin_savepoint(true, 2026080300, 'local', 'freshdesk');
+    }
+
     return true;
 }

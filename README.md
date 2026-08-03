@@ -169,6 +169,39 @@ If the widget is "not working" on a new site, work through these in order:
      The plugin trims pasted whitespace from the key automatically.
    - HTTP 403 means the agent lacks permission to create tickets.
 
+## Automatic updates via the Moodle Plugins directory
+
+Once this plugin is published in the
+[Moodle Plugins directory](https://moodle.org/plugins/), Moodle sites that
+installed it from there are notified of new releases under **Site
+administration → Notifications** and can update in place with a single click —
+no manual re-download required. For that to work each new version must be
+pushed to the directory, which this repository automates:
+
+1. **`release.yml`** runs when `version.php` is changed on `main`. It reads
+   `$plugin->release`, tags the commit `vX.Y.Z`, builds the plugin ZIP, and
+   creates a matching GitHub release.
+2. It then dispatches **`moodle-release.yml`**, which calls the
+   `local_plugins_add_version` Moodle web service to register the new version
+   in the Plugins directory (referencing the tag's zipball).
+
+The chain fires automatically because bumping `$plugin->version` and
+`$plugin->release` on `main` is the single trigger; `moodle-release.yml` can
+also be run on demand from the Actions tab (**workflow_dispatch**, supply the
+tag).
+
+**One-time maintainer setup:**
+
+- Register the plugin once in the Moodle Plugins directory (manual submission
+  and approval by the moodle.org reviewers).
+- Add a repository secret named **`MOODLE_ORG_TOKEN`** — a moodle.org web
+  service token for the `local_plugins_add_version` function, obtained from
+  your moodle.org account. Without it `moodle-release.yml` cannot publish.
+
+To cut a release, bump both `$plugin->version` (the integer date stamp) and
+`$plugin->release` (the human version) in `version.php`, add a matching
+`upgrade_plugin_savepoint` block in `db/upgrade.php`, and merge to `main`.
+
 ## Building the JavaScript
 
 `amd/build/widget.min.js` must be regenerated whenever `amd/src/widget.js`
@@ -204,6 +237,7 @@ local/freshdesk/
 │   └── privacy/
 │       └── provider.php                     # Privacy API provider (declares external data flow)
 ├── db/
+│   ├── access.php                          # Capability definitions (local/freshdesk:use)
 │   ├── caches.php                           # Cache definitions
 │   ├── hooks.php                            # Registers the before_footer hook callback
 │   ├── install.php                          # Sets default config values on install
