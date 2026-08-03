@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
@@ -93,3 +94,17 @@ jobs:
             --title "$tag" \
             --generate-notes \
             "${{ steps.meta.outputs.component }}-$tag.zip"
+
+      - name: Publish the new version to the Moodle Plugins directory
+        if: steps.tagcheck.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The tag above is pushed with GITHUB_TOKEN, and GitHub deliberately
+          # does NOT fire the "push: tags" event for GITHUB_TOKEN pushes, so
+          # moodle-release.yml would never run on its own. workflow_dispatch is
+          # the documented exception that IS allowed to fire from GITHUB_TOKEN,
+          # so dispatch the publish workflow explicitly and pass it the tag.
+          gh workflow run moodle-release.yml \
+            --ref "${{ github.ref_name }}" \
+            -f tag="${{ steps.meta.outputs.tag }}"
