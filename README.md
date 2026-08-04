@@ -185,12 +185,16 @@ To cut a release:
 
 1. Bump both `$plugin->version` (the integer date stamp) and `$plugin->release`
    (the human version) in `version.php`, add a matching
-   `upgrade_plugin_savepoint` block in `db/upgrade.php`, and merge to `main`.
+   `upgrade_plugin_savepoint` block in `db/upgrade.php`, add a `## <release>`
+   section to [`CHANGES.md`](CHANGES.md), and merge to `main`.
 2. On merge, **`release.yml`** tags the commit `vX.Y.Z`, builds the plugin ZIP,
-   and creates a matching GitHub release. This produces the artefact to upload —
-   it does not publish to the Marketplace.
+   and creates a matching GitHub release, using that version's `CHANGES.md`
+   section as the release notes (falling back to auto-generated notes if none
+   exists). This produces the artefact to upload — it does not publish to the
+   Marketplace.
 3. **Upload the ZIP** from that GitHub release as a new version on the plugin's
-   Moodle Marketplace Plugin dashboard, and add the release notes.
+   Moodle Marketplace Plugin dashboard, pasting the same `CHANGES.md` section
+   into the release-notes field.
 
 Sites that installed the plugin from the Marketplace are then notified of the
 new version. (`moodle-release.yml` is retained but dormant — it targeted the
@@ -247,6 +251,7 @@ local/freshdesk/
 ├── lib.php
 ├── settings.php                             # Admin settings page
 ├── version.php                              # Plugin metadata
+├── CHANGES.md                               # Per-version changelog / release notes
 └── README.md
 ```
 

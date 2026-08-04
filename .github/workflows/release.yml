@@ -87,12 +87,37 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.meta.outputs.tag }}"
+          release="${{ steps.meta.outputs.release }}"
           git tag "$tag"
           git push origin "$tag"
-          gh release create "$tag" \
-            --title "$tag" \
-            --generate-notes \
-            "${{ steps.meta.outputs.component }}-$tag.zip"
+
+          # Prefer the hand-written CHANGES.md section for this release as the
+          # release notes; fall back to auto-generated notes if there is no
+          # matching section. The awk block prints from the "## <release>"
+          # heading up to (but not including) the next "## " heading.
+          notes_file="$(mktemp)"
+          if [ -f CHANGES.md ]; then
+            awk -v ver="$release" '
+              /^## / {
+                if (grab) { exit }
+                if ($0 ~ "^## " ver "([ ]|$)") { grab = 1 }
+              }
+              grab { print }
+            ' CHANGES.md > "$notes_file"
+          fi
+
+          if [ -s "$notes_file" ]; then
+            gh release create "$tag" \
+              --title "$tag" \
+              --notes-file "$notes_file" \
+              "${{ steps.meta.outputs.component }}-$tag.zip"
+          else
+            echo "No CHANGES.md section for $release; using auto-generated notes."
+            gh release create "$tag" \
+              --title "$tag" \
+              --generate-notes \
+              "${{ steps.meta.outputs.component }}-$tag.zip"
+          fi
 
           # NOTE: this workflow no longer auto-publishes to the plugin directory.
           # Moodle Marketplace (marketplace.moodle.com) replaced the read-only
