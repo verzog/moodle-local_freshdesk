@@ -172,14 +172,14 @@ If the widget is "not working" on a new site, work through these in order:
 ## Releasing a new version
 
 This plugin is distributed via [Moodle Marketplace](https://marketplace.moodle.com/)
-(which replaced the `moodle.org/plugins` directory on 2026-07-20).
+(which replaced the `moodle.org/plugins` directory on 2026-07-20). Publishing is
+automated through the Marketplace plugin-versions API.
 
-> **Publishing is a manual step.** Moodle Marketplace does **not** support API
-> or GitHub-workflow uploads at launch — new plugin versions must be uploaded
-> by hand through the Marketplace **Plugin dashboard**. A version bump merged to
-> `main` therefore does **not** reach users on its own. Restoring automated
-> uploads is on Moodle's roadmap; until then, always complete the manual upload
-> below.
+**One-time setup:** add a repository secret named **`MOODLE_MARKETPLACE_TOKEN`** —
+an API token created at
+[marketplace.moodle.com/account/security](https://marketplace.moodle.com/account/security).
+Without it the Marketplace publish step fails while the GitHub tag, ZIP and
+release are still produced.
 
 To cut a release:
 
@@ -190,16 +190,18 @@ To cut a release:
 2. On merge, **`release.yml`** tags the commit `vX.Y.Z`, builds the plugin ZIP,
    and creates a matching GitHub release, using that version's `CHANGES.md`
    section as the release notes (falling back to auto-generated notes if none
-   exists). This produces the artefact to upload — it does not publish to the
-   Marketplace.
-3. **Upload the ZIP** from that GitHub release as a new version on the plugin's
-   Moodle Marketplace Plugin dashboard, pasting the same `CHANGES.md` section
-   into the release-notes field.
+   exists).
+3. Its `publish-marketplace` job then calls the official
+   [`moodlehq/moodle-plugin-release`](https://github.com/moodlehq/moodle-plugin-release)
+   reusable workflow, which submits the new version to Moodle Marketplace. A
+   `201` response means the version was accepted for the Marketplace's automated
+   pre-checks (acceptance, not instant publication).
 
 Sites that installed the plugin from the Marketplace are then notified of the
-new version. (`moodle-release.yml` is retained but dormant — it targeted the
-retired `moodle.org` web service and is kept only as scaffolding for a future
-Marketplace upload API.)
+new version. To (re)publish an existing tag on demand — e.g. a tag that predates
+this automation, or to retry a failed submission — run the
+**Publish a tag to Moodle Marketplace** workflow (`moodle-release.yml`) from the
+Actions tab and supply the tag.
 
 ## Building the JavaScript
 
