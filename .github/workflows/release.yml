@@ -1,9 +1,16 @@
 name: Release
 
-# Tags a release and publishes a downloadable plugin ZIP whenever the version
-# in version.php is bumped on the default branch. The ZIP attached to the
-# GitHub release is what the Moodle Plugins directory can reference for the
-# in-Moodle "Install this update" download link.
+# When the version in version.php is bumped on the default branch this:
+#   1. tags the commit vX.Y.Z, builds the plugin ZIP, and creates a GitHub
+#      release whose notes come from the matching CHANGES.md section; then
+#   2. publishes the new version to Moodle Marketplace by calling the official
+#      moodlehq/moodle-plugin-release reusable workflow (the publish-marketplace
+#      job below), which POSTs to the Marketplace plugin-versions API.
+#
+# The Marketplace step needs a repository secret named MOODLE_MARKETPLACE_TOKEN
+# (an API token from https://marketplace.moodle.com/account/security). Without
+# it the publish-marketplace job fails while the tag/ZIP/GitHub release still
+# succeed. See issue #57.
 
 on:
   push:
@@ -21,6 +28,10 @@ jobs:
   release:
     name: Tag and publish release
     runs-on: ubuntu-latest
+
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      newtag: ${{ steps.tagcheck.outputs.exists == 'false' }}
 
     steps:
       - name: Check out repository code
@@ -119,10 +130,18 @@ jobs:
               "${{ steps.meta.outputs.component }}-$tag.zip"
           fi
 
-          # NOTE: this workflow no longer auto-publishes to the plugin directory.
-          # Moodle Marketplace (marketplace.moodle.com) replaced the read-only
-          # moodle.org/plugins directory on 2026-07-20 and does not support API /
-          # GitHub-workflow uploads at launch, so new versions must be uploaded
-          # manually via the Marketplace Plugin dashboard. The GitHub release and
-          # ZIP built above are what you hand to that manual upload. See issue #57;
-          # re-add automated publishing once Moodle ships the Marketplace upload API.
+  # Publishes the freshly tagged version to Moodle Marketplace via the official
+  # moodlehq reusable workflow. Runs only when the release job created a new tag.
+  # The reusable workflow resolves the tag, zips the plugin, pulls the release
+  # notes from the GitHub release created above, and POSTs to
+  # https://marketplace.moodle.com/api/plugins/<component>/versions using the
+  # MOODLE_MARKETPLACE_TOKEN bearer token.
+  publish-marketplace:
+    name: Publish version to Moodle Marketplace
+    needs: release
+    if: needs.release.outputs.newtag == 'true'
+    uses: moodlehq/moodle-plugin-release/.github/workflows/moodle-release.yml@main
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets:
+      MOODLE_MARKETPLACE_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
