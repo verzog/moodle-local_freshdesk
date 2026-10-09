@@ -49,7 +49,7 @@ function xmldb_local_freshdesk_install(): bool {
 
     // Fresh install: set sensible defaults.
     set_config('enabled', 1, 'local_freshdesk');
-    set_config('portal_url', 'https://thefeaturecreep.freshdesk.com', 'local_freshdesk');
+    set_config('portal_url', '', 'local_freshdesk');
     set_config('api_key', '', 'local_freshdesk');
     set_config('widget_color', '#006B6B', 'local_freshdesk');
     set_config('hide_for_admins', 0, 'local_freshdesk');

@@ -63,6 +63,12 @@ class before_footer {
             return;
         }
 
+        // Nothing to show until an administrator has set the Freshdesk portal URL.
+        $portalurl = rtrim(trim((string) ($config->portal_url ?? '')), '/');
+        if ($portalurl === '') {
+            return;
+        }
+
         // Two render modes. With local/freshdesk:use (logged-in users by default)
         // the full widget renders: KB search, article viewer, and the contact
         // form. Everyone else (guests, not-logged-in, capability denied) gets a
@@ -91,7 +97,6 @@ class before_footer {
         // Load Freshdesk settings from plugin config.
         // The API key is intentionally NOT passed to JavaScript; all Freshdesk
         // API calls are proxied through server-side external functions.
-        $portalurl   = rtrim((string) ($config->portal_url ?? 'https://thefeaturecreep.freshdesk.com'), '/');
         $widgetcolor = trim((string) ($config->widget_color ?? ''));
         // Accept only plain colour values (hex, rgb() or a colour name) so the setting
         // cannot carry other CSS into the page.

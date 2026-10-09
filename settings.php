@@ -45,7 +45,7 @@ if ($hassiteconfig) {
         'local_freshdesk/portal_url',
         get_string('portal_url', 'local_freshdesk'),
         get_string('portal_url_desc', 'local_freshdesk'),
-        'https://thefeaturecreep.freshdesk.com',
+        '',
         PARAM_URL
     ));
 

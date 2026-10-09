@@ -31,6 +31,9 @@ or 5.0 should stay on 2.4.8.
 - Templates use `{{#str}}` for all text.
 - Press Escape to close the support window.
 - The web services declare the `local/freshdesk:use` capability.
+- New installs start with a blank Freshdesk portal URL, and the widget stays
+  hidden until it is set (previously it defaulted to the developer's portal).
+  Existing sites keep their configured URL.
 
 ### Compatibility
 - Requires Moodle 5.1 or later; tested on 5.1, 5.2 and 5.3 LTS with

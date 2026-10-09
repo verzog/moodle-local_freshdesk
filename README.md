@@ -51,6 +51,7 @@ A Moodle local plugin that adds a floating **Get Help** button to every page, op
    Moodle will detect the new plugin and run the installer.
 
 3. Go to **Site Administration → Local plugins → Freshdesk Support Widget** to configure the plugin.
+   The Get Help button does not appear until the Freshdesk portal URL is set.
 
 ## Upgrading from v1.x (local_freshdeskwidget)
 
@@ -66,7 +67,7 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 | Setting | Description | Default |
 |---------|-------------|---------|
 | Enable widget | Show or hide the widget site-wide | Enabled |
-| Freshdesk portal URL | Your Freshdesk account URL | `https://thefeaturecreep.freshdesk.com` |
+| Freshdesk portal URL | Your Freshdesk account URL. The widget stays hidden until this is set | *(empty)* |
 | Freshdesk API key | Found in Freshdesk under Profile Settings → Your API Key | *(empty)* |
 | Default ticket type | Optional. Sent as the ticket `type`; must exactly match one of the values in Freshdesk Admin → Workflows → Ticket Fields → Type | *(empty)* |
 | Default group ID | Optional. Numeric Freshdesk group ID to assign new tickets to | *(empty)* |
@@ -144,6 +145,8 @@ The widget searches with up to two terms simultaneously: the current course full
 If the widget is "not working" on a new site, work through these in order:
 
 1. **No Get Help button appears at all**
+   - Check the *Freshdesk portal URL* setting is filled in: the widget is
+     hidden until it is set.
    - Check **Site administration → Plugins → Local plugins → Freshdesk Support
      Widget**: *Enable widget* must be ticked.
    - If you are logged in as an admin, check *Hide for site administrators* is

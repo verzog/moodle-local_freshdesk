@@ -82,6 +82,20 @@ final class before_footer_test extends \advanced_testcase {
     }
 
     /**
+     * Without a portal URL the widget stays hidden.
+     *
+     * @return void
+     */
+    public function test_blank_portal_url_adds_nothing(): void {
+        $this->resetAfterTest();
+        set_config('enabled', 1, 'local_freshdesk');
+        set_config('portal_url', '', 'local_freshdesk');
+        $this->setUser($this->getDataGenerator()->create_user());
+
+        $this->assertStringNotContainsString('local_freshdesk/widget', $this->run_callback());
+    }
+
+    /**
      * A colour setting carrying anything other than a colour value falls back to the default.
      *
      * @return void
