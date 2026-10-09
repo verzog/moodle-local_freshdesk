@@ -43,6 +43,14 @@ $functions = [
         'loginrequired' => true,
         'capabilities'  => 'local/freshdesk:use',
     ],
+    'local_freshdesk_get_ticket_options' => [
+        'classname'     => \local_freshdesk\external\get_ticket_options::class,
+        'description'   => 'Get the type-of-assistance choices for the contact form (read from Freshdesk server-side).',
+        'type'          => 'read',
+        'ajax'          => true,
+        'loginrequired' => true,
+        'capabilities'  => 'local/freshdesk:use',
+    ],
     'local_freshdesk_get_article' => [
         'classname'     => \local_freshdesk\external\get_article::class,
         'description'   => 'Fetch a single Freshdesk knowledge base article (server-side proxy, API key stays on server).',

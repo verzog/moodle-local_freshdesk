@@ -5,6 +5,19 @@ recorded here. Versions match `$plugin->release` in `version.php`. The section
 for each release is used verbatim as that version's GitHub release notes and can
 be pasted into the Moodle Marketplace release-notes field.
 
+## 2.6.0 - 2026-10-10
+
+### New
+- **Type of assistance dropdown.** Set *Type of assistance field* to the label
+  (or API name) of a Freshdesk dropdown ticket field, e.g. "Types of assistance
+  required". The contact form then shows that field's choices as a dropdown
+  instead of a free-text Subject box. The chosen option is sent in that
+  Freshdesk field — so accounts that make it mandatory no longer reject
+  tickets — and becomes the ticket subject (with the course name). Choices are
+  read live from Freshdesk and refreshed every 15 minutes; nested (dependent)
+  fields show one list per level. If Freshdesk cannot be read, the form falls
+  back to the free-text subject.
+
 ## 2.5.0 - 2026-10-09
 
 Moodle 5.3 LTS release. Supports Moodle 5.1, 5.2 and 5.3; sites on Moodle 4.5

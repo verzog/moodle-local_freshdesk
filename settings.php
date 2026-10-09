@@ -57,6 +57,14 @@ if ($hassiteconfig) {
     ));
 
     $settings->add(new admin_setting_configtext(
+        'local_freshdesk/category_field',
+        get_string('category_field', 'local_freshdesk'),
+        get_string('category_field_desc', 'local_freshdesk'),
+        '',
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtext(
         'local_freshdesk/ticket_type',
         get_string('ticket_type', 'local_freshdesk'),
         get_string('ticket_type_desc', 'local_freshdesk'),

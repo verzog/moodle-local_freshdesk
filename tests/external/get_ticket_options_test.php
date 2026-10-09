@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Tests for the submit_ticket external function.
+ * Tests for the get_ticket_options external function.
  *
  * @package    local_freshdesk
  * @copyright  2026 verzog
@@ -24,18 +24,20 @@
 
 namespace local_freshdesk\external;
 
+use core_external\external_api;
+
 /**
- * Tests for the submit_ticket external function.
+ * Tests for the get_ticket_options external function.
  *
  * @package    local_freshdesk
  * @copyright  2026 verzog
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers     \local_freshdesk\external\submit_ticket
+ * @covers     \local_freshdesk\external\get_ticket_options
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(\local_freshdesk\external\submit_ticket::class)]
-final class submit_ticket_test extends \advanced_testcase {
+#[\PHPUnit\Framework\Attributes\CoversClass(get_ticket_options::class)]
+final class get_ticket_options_test extends \advanced_testcase {
     /**
-     * Configures the plugin with a valid-looking portal and logs in a user.
+     * Configures the plugin and logs in a user.
      *
      * @return void
      */
@@ -49,37 +51,11 @@ final class submit_ticket_test extends \advanced_testcase {
     }
 
     /**
-     * Submitting while the plugin is disabled fails with the plugin's error string.
+     * The configured field's label and choices are returned (served from the cache here).
      *
      * @return void
      */
-    public function test_disabled_throws(): void {
-        set_config('enabled', 0, 'local_freshdesk');
-
-        $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('errorsubmitting', 'local_freshdesk'));
-        submit_ticket::execute('Subject', 'Message', 'https://example.com/', '', '');
-    }
-
-    /**
-     * A non-HTTPS portal URL is refused so the API key is never sent in clear text.
-     *
-     * @return void
-     */
-    public function test_insecure_portal_url_throws(): void {
-        set_config('portal_url', 'http://example.freshdesk.com', 'local_freshdesk');
-
-        $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('errorsubmitting', 'local_freshdesk'));
-        submit_ticket::execute('Subject', 'Message', 'https://example.com/', '', '');
-    }
-
-    /**
-     * A type of assistance that is not a current Freshdesk choice is rejected before anything is sent.
-     *
-     * @return void
-     */
-    public function test_invalid_category_throws(): void {
+    public function test_returns_choices(): void {
         set_config('category_field', 'cf_help', 'local_freshdesk');
         \core_cache\cache::make('local_freshdesk', 'ticket_fields')->set(md5('https://example.freshdesk.com'), [[
             'name' => 'cf_help',
@@ -88,13 +64,29 @@ final class submit_ticket_test extends \advanced_testcase {
             'choices' => ['Login problem', 'Certificate'],
         ]]);
 
-        $this->expectException(\moodle_exception::class);
-        $this->expectExceptionMessage(get_string('errorsubmitting', 'local_freshdesk'));
-        submit_ticket::execute('Subject', 'Message', 'https://example.com/', '', '', '', ['Made-up choice']);
+        $result = external_api::clean_returnvalue(get_ticket_options::execute_returns(), get_ticket_options::execute());
+
+        $this->assertTrue($result['enabled']);
+        $this->assertSame('Types of assistance required', $result['label']);
+        $this->assertSame(['Login problem', 'Certificate'], array_column($result['options'], 'value'));
     }
 
     /**
-     * Guests cannot submit tickets.
+     * Without the setting the form keeps its free-text subject.
+     *
+     * @return void
+     */
+    public function test_disabled_when_not_configured(): void {
+        set_config('category_field', '', 'local_freshdesk');
+
+        $result = get_ticket_options::execute();
+
+        $this->assertFalse($result['enabled']);
+        $this->assertSame([], $result['options']);
+    }
+
+    /**
+     * Guests cannot read the choices.
      *
      * @return void
      */
@@ -102,6 +94,6 @@ final class submit_ticket_test extends \advanced_testcase {
         $this->setGuestUser();
 
         $this->expectException(\required_capability_exception::class);
-        submit_ticket::execute('Subject', 'Message', 'https://example.com/', '', '');
+        get_ticket_options::execute();
     }
 }

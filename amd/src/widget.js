@@ -44,11 +44,17 @@ const strs = {};
 /** @type {string|null} Base64-encoded JPEG screenshot, or null when not set. */
 let screenshotData = null;
 
+/** @type {Promise|null} Loads the type-of-assistance choices once per page. */
+let categoryPromise = null;
+
+/** @type {Object|null} The type-of-assistance field, or null while the free-text subject is used. */
+let categoryField = null;
+
 /** Identifiers of the language strings the widget needs at runtime. */
 const STRING_KEYS = [
-    'articleloaderror', 'errormessage', 'errorsubject', 'initialprompt',
-    'loadingarticle', 'loadingsuggestions', 'noarticles', 'nocontent',
-    'openinfreshdesk', 'searching', 'searchunavailable', 'send', 'sending',
+    'articleloaderror', 'errorcategory', 'errormessage', 'errorsubject', 'initialprompt',
+    'loadingarticle', 'loadingoptions', 'loadingsuggestions', 'noarticles', 'nocontent',
+    'openinfreshdesk', 'searching', 'searchunavailable', 'selectchoice', 'send', 'sending',
     'submittingas', 'suggestedheading', 'supportrequest', 'ticketsubmiterror',
 ];
 
@@ -372,6 +378,152 @@ const showContactError = (message) => {
 };
 
 /**
+ * Fetches the type-of-assistance choices from the server once per page.
+ *
+ * @returns {Promise} Resolves with the field, or null when the free-text subject should be used.
+ */
+const loadCategoryField = () => {
+    if (!categoryPromise) {
+        categoryPromise = Ajax.call([{
+            methodname: 'local_freshdesk_get_ticket_options',
+            args: {},
+        }])[0]
+            .then((data) => (data && data.enabled && data.options.length ? data : null))
+            .catch(() => null);
+    }
+    return categoryPromise;
+};
+
+/**
+ * Returns the choices whose parent is the given option.
+ *
+ * @param {number} parentId Parent option id, 0 for the top level.
+ * @returns {Array}
+ */
+const childOptions = (parentId) => categoryField.options.filter((option) => option.parentid === parentId);
+
+/**
+ * Adds a dropdown for one level of the type-of-assistance field.
+ *
+ * @param {number} depth Level index, 0 for the top level.
+ * @param {number} parentId Option chosen at the level above, 0 for the top level.
+ */
+const addCategoryLevel = (depth, parentId) => {
+    const choices = childOptions(parentId);
+    if (!choices.length) {
+        return;
+    }
+
+    const wrap = byId('fd-category-wrap');
+    const id = 'fd-category-' + depth;
+    const row = document.createElement('div');
+    row.className = 'fd-category-level';
+    row.dataset.depth = String(depth);
+
+    const label = document.createElement('label');
+    label.htmlFor = id;
+    label.textContent = (categoryField.levels[depth] || categoryField).label;
+
+    const select = document.createElement('select');
+    select.id = id;
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = strs.selectchoice;
+    select.appendChild(placeholder);
+    choices.forEach((option) => {
+        const el = document.createElement('option');
+        el.value = String(option.id);
+        el.textContent = option.value;
+        select.appendChild(el);
+    });
+
+    select.addEventListener('change', () => {
+        // Remove any deeper lists, then offer the next level for the new choice.
+        wrap.querySelectorAll('.fd-category-level').forEach((el) => {
+            if (Number(el.dataset.depth) > depth) {
+                el.remove();
+            }
+        });
+        if (select.value) {
+            addCategoryLevel(depth + 1, Number(select.value));
+        }
+    });
+
+    row.appendChild(label);
+    row.appendChild(select);
+    wrap.appendChild(row);
+};
+
+/**
+ * Draws the type-of-assistance dropdowns from scratch, with nothing chosen.
+ */
+const renderCategoryField = () => {
+    byId('fd-category-wrap').textContent = '';
+    addCategoryLevel(0, 0);
+};
+
+/**
+ * Returns the chosen type of assistance.
+ *
+ * @returns {Object} chosen: the chosen options, top level first; complete: whether every list is answered.
+ */
+const getCategorySelection = () => {
+    const selects = byId('fd-category-wrap').querySelectorAll('select');
+    const chosen = [];
+    selects.forEach((select) => {
+        const option = categoryField.options.find((candidate) => String(candidate.id) === select.value);
+        if (option) {
+            chosen.push(option);
+        }
+    });
+    const complete = chosen.length > 0 && chosen.length === selects.length &&
+        childOptions(chosen[chosen.length - 1].id).length === 0;
+    return {chosen: chosen, complete: complete};
+};
+
+/**
+ * Shows either the type-of-assistance dropdowns or the free-text subject box.
+ */
+const setupSubjectField = () => {
+    const subjectInput = byId('fd-ticket-subject');
+    if (!subjectInput.value) {
+        subjectInput.value = strs.supportrequest + (cfg.courseName ? ' - ' + cfg.courseName : '');
+    }
+
+    if (!cfg.hasCategory) {
+        return;
+    }
+
+    setDisplay('fd-subject-wrap', 'none');
+    setDisplay('fd-category-wrap', 'flex');
+    if (categoryField) {
+        if (!byId('fd-category-wrap').querySelector('select')) {
+            renderCategoryField();
+        }
+        return;
+    }
+
+    const wrap = byId('fd-category-wrap');
+    wrap.textContent = '';
+    const loading = document.createElement('p');
+    loading.className = 'fd-category-loading';
+    loading.textContent = strs.loadingoptions;
+    wrap.appendChild(loading);
+
+    loadCategoryField().then((field) => {
+        categoryField = field;
+        if (field) {
+            renderCategoryField();
+        } else {
+            // Freshdesk could not be read: fall back to the free-text subject.
+            setDisplay('fd-category-wrap', 'none');
+            setDisplay('fd-subject-wrap', '');
+        }
+        return field;
+    }).catch(() => null);
+};
+
+/**
  * Displays the contact/ticket submission form.
  */
 const showContactForm = () => {
@@ -384,10 +536,7 @@ const showContactForm = () => {
     const userInfoEl = byId('fd-contact-userinfo');
     userInfoEl.textContent = cfg.userName ? strs.submittingas + ' ' + cfg.userName : '';
 
-    const subjectInput = byId('fd-ticket-subject');
-    if (!subjectInput.value) {
-        subjectInput.value = strs.supportrequest + (cfg.courseName ? ' - ' + cfg.courseName : '');
-    }
+    setupSubjectField();
 
     setDisplay('fd-contact-form', 'flex');
     byId('fd-ticket-message').focus();
@@ -408,6 +557,9 @@ const resetContactForm = () => {
     submitBtn.textContent = strs.send;
     clearContactError();
     clearScreenshot();
+    if (categoryField) {
+        renderCategoryField();
+    }
 };
 
 /**
@@ -439,9 +591,21 @@ const processScreenshotFile = (file) => {
  * Submits the ticket via AJAX.
  */
 const submitTicket = () => {
-    const subject = byId('fd-ticket-subject').value.trim();
     const message = byId('fd-ticket-message').value.trim();
     const submitBtn = byId('fd-contact-submit');
+    let subject = byId('fd-ticket-subject').value.trim();
+    let category = [];
+
+    if (cfg.hasCategory && categoryField) {
+        const selection = getCategorySelection();
+        if (!selection.complete) {
+            showContactError(strs.errorcategory);
+            return;
+        }
+        // The chosen type of assistance becomes the subject, e.g. "Technical problem – Course name".
+        category = selection.chosen.map((option) => option.value);
+        subject = category.join(' – ') + (cfg.courseName ? ' – ' + cfg.courseName : '');
+    }
 
     if (!subject || !message) {
         showContactError(!subject ? strs.errorsubject : strs.errormessage);
@@ -461,6 +625,7 @@ const submitTicket = () => {
             coursename: cfg.courseName || '',
             userrole: cfg.userRole || '',
             screenshot: screenshotData || '',
+            category: category,
         },
     }])[0].then((result) => {
         if (result.success) {
