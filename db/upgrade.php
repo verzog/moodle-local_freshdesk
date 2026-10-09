@@ -236,5 +236,14 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026080300, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026100900) {
+        // Moodle 5.1 to 5.3 LTS: AMD module rebuilt with grunt (fixes "No define call for
+        // local_freshdesk/widget"); widget CSS moved to styles.css; templates use {{#str}};
+        // article HTML is now cleaned server-side. Purge the search cache so results cached
+        // in the old format are not served. No database changes required.
+        \core_cache\helper::purge_by_definition('local_freshdesk', 'search_results');
+        upgrade_plugin_savepoint(true, 2026100900, 'local', 'freshdesk');
+    }
+
     return true;
 }

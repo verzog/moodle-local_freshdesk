@@ -1,0 +1,467 @@
+/**
+ * Styles for the Freshdesk support widget.
+ *
+ * The admin-configured button colour is applied at runtime through the
+ * --local-freshdesk-colour custom property (set by amd/src/widget.js).
+ */
+
+/* Floating help button. */
+#fd-help-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9998;
+    display: inline-block;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 24px;
+    background: var(--local-freshdesk-colour, #006b6b);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    transition: background 0.2s;
+}
+
+#fd-help-btn:hover {
+    filter: brightness(1.1);
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Modal overlay and shell. */
+#fd-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+#fd-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    width: 580px;
+    max-width: 95vw;
+    height: 700px;
+    max-height: 90vh;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Header. */
+#fd-modal-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--local-freshdesk-colour, #006b6b);
+    color: #fff;
+}
+
+#fd-modal #fd-modal-header h2 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+#fd-modal-close {
+    padding: 0 4px;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Search panel. */
+#fd-search-panel {
+    flex-shrink: 0;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+#fd-search-row {
+    display: flex;
+    gap: 8px;
+}
+
+#fd-search-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+#fd-search-btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--local-freshdesk-colour, #006b6b);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* Results area. */
+#fd-results {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+}
+
+#fd-status {
+    padding: 16px;
+    color: #666;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* Article list. */
+#fd-articles {
+    padding: 8px 16px;
+}
+
+.fd-article-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.fd-article-title {
+    display: block;
+    color: var(--local-freshdesk-colour, #006b6b);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.fd-article-title:hover {
+    text-decoration: underline;
+}
+
+.fd-article-desc {
+    margin: 4px 0 0;
+    color: #555;
+    font-size: 13px;
+}
+
+/* Article viewer. */
+#fd-article-view {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#fd-article-back {
+    display: flex;
+    flex-shrink: 0;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f5f5f5;
+}
+
+#fd-article-back button,
+#fd-contact-form-back button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #555;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#fd-article-back button:hover,
+#fd-contact-form-back button:hover {
+    color: #000;
+}
+
+#fd-article-open-btn {
+    margin-left: auto;
+}
+
+#fd-article-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.fd-article-loading {
+    padding: 20px;
+    color: #999;
+    text-align: center;
+}
+
+.fd-article-error {
+    color: #c00;
+}
+
+/* Contact form. */
+#fd-contact-form {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#fd-contact-form-back {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f5f5f5;
+}
+
+#fd-contact-success {
+    display: none;
+    padding: 32px 16px;
+    text-align: center;
+}
+
+#fd-contact-success-msg {
+    color: #2a7a2a;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#fd-contact-success-sub {
+    color: #555;
+    font-size: 14px;
+}
+
+#fd-contact-fields {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+#fd-contact-userinfo {
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* Suggested articles inside the contact form. */
+#fd-suggest-section {
+    display: none;
+    padding: 10px 12px;
+    border: 1px solid #dde8ff;
+    border-radius: 6px;
+    background: #f5f8ff;
+}
+
+#fd-suggest-heading {
+    margin: 0 0 6px;
+    color: #555;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.fd-suggest-link {
+    display: block;
+    padding: 3px 0;
+    color: var(--local-freshdesk-colour, #006b6b);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.fd-suggest-link:hover {
+    text-decoration: underline;
+}
+
+/* Form fields. */
+#fd-contact-fields label {
+    display: block;
+    margin-bottom: 4px;
+    color: #333;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#fd-ticket-subject,
+#fd-ticket-message {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+#fd-ticket-message {
+    min-height: 90px;
+    resize: vertical;
+}
+
+/* Screenshot controls. */
+#fd-screenshot-attach {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f0f0f0;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#fd-screenshot-attach:hover {
+    background: #e4e4e4;
+}
+
+#fd-screenshot-file {
+    display: none;
+}
+
+#fd-screenshot-preview-wrap {
+    display: none;
+    position: relative;
+    margin-top: 8px;
+}
+
+#fd-screenshot-img {
+    width: 100%;
+    max-height: 120px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    object-fit: contain;
+}
+
+#fd-screenshot-clear {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 2px 7px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#fd-screenshot-hint {
+    margin: 6px 0 0;
+    color: #888;
+    font-size: 12px;
+}
+
+/* Validation and privacy. */
+#fd-contact-error {
+    display: none;
+    margin: 0;
+    color: #c00;
+    font-size: 13px;
+}
+
+#fd-privacy-notice {
+    margin: 0;
+    color: #888;
+    font-size: 12px;
+}
+
+/* Submit button. */
+#fd-contact-submit {
+    width: 100%;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    background: var(--local-freshdesk-colour, #006b6b);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#fd-contact-submit:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+#fd-contact-submit:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+/* Contact bar (bottom). */
+#fd-contact-bar {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    background: var(--local-freshdesk-colour, #006b6b);
+    text-align: center;
+}
+
+#fd-contact-btn {
+    padding: 7px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    background: none;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#fd-contact-btn:hover {
+    border-color: #fff;
+}
+
+/* Icon. */
+.fd-icon {
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.fd-icon img {
+    width: 1em;
+    height: 1em;
+    object-fit: contain;
+    vertical-align: middle;
+}
+
+/* Responsive. */
+@media (max-width: 600px) {
+    #fd-modal {
+        width: 98vw;
+        height: 95vh;
+    }
+}
+
+/*
+ * Hide the floating button while a Moodle modal or YUI dialogue (e.g. the
+ * file picker) is open in narrow-screen / fullscreen mode, so it does not
+ * cover the dialogue's controls. Kept as two rules: a browser without :has()
+ * support would otherwise drop both selectors.
+ */
+body.modal-open #fd-help-btn {
+    display: none;
+}
+
+body:has(.moodle-dialogue-fullscreen) #fd-help-btn {
+    display: none;
+}

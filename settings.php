@@ -45,7 +45,7 @@ if ($hassiteconfig) {
         'local_freshdesk/portal_url',
         get_string('portal_url', 'local_freshdesk'),
         get_string('portal_url_desc', 'local_freshdesk'),
-        'https://thefeaturecreep.freshdesk.com',
+        '',
         PARAM_URL
     ));
 
@@ -80,12 +80,11 @@ if ($hassiteconfig) {
         PARAM_RAW_TRIMMED
     ));
 
-    $settings->add(new admin_setting_configtext(
+    $settings->add(new admin_setting_configcolourpicker(
         'local_freshdesk/widget_color',
         get_string('widget_color', 'local_freshdesk'),
         get_string('widget_color_desc', 'local_freshdesk'),
-        '#006B6B',
-        PARAM_TEXT
+        '#006B6B'
     ));
 
     $settings->add(new admin_setting_configcheckbox(

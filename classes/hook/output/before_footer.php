@@ -63,6 +63,12 @@ class before_footer {
             return;
         }
 
+        // Nothing to show until an administrator has set the Freshdesk portal URL.
+        $portalurl = rtrim(trim((string) ($config->portal_url ?? '')), '/');
+        if ($portalurl === '') {
+            return;
+        }
+
         // Two render modes. With local/freshdesk:use (logged-in users by default)
         // the full widget renders: KB search, article viewer, and the contact
         // form. Everyone else (guests, not-logged-in, capability denied) gets a
@@ -83,14 +89,20 @@ class before_footer {
         $userprofileurl = $isloggedin
             ? (new \moodle_url('/user/profile.php', ['id' => $USER->id]))->out(false)
             : '';
-        $currenturl = $PAGE->url->out(false);
+        // Some pages (e.g. error pages) never call $PAGE->set_url(); reading it there
+        // triggers a debugging notice, so fall back to the site home.
+        $currenturl = $PAGE->has_set_url() ? $PAGE->url->out(false) : (new \moodle_url('/'))->out(false);
         $coursename = $courseid > 1 ? format_string($COURSE->fullname) : '';
 
         // Load Freshdesk settings from plugin config.
         // The API key is intentionally NOT passed to JavaScript; all Freshdesk
         // API calls are proxied through server-side external functions.
-        $portalurl   = rtrim((string) ($config->portal_url ?? 'https://thefeaturecreep.freshdesk.com'), '/');
-        $widgetcolor = (string) ($config->widget_color ?? '#006B6B');
+        $widgetcolor = trim((string) ($config->widget_color ?? ''));
+        // Accept only plain colour values (hex, rgb() or a colour name) so the setting
+        // cannot carry other CSS into the page.
+        if (!preg_match('/^[#a-zA-Z0-9(),.%\s]{1,40}$/', $widgetcolor)) {
+            $widgetcolor = '#006B6B';
+        }
         $widgeticon  = (string) ($config->widget_icon ?? '🎓');
 
         // Config is passed as a js_call_amd argument rather than via

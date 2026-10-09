@@ -23,25 +23,23 @@
         mode for users without local/freshdesk:use).
 
     Context variables required for this template:
-    * label - Visible button label (e.g. "Get Help")
-    * arialabel - aria-label for screen readers
     * icon - Optional icon: Unicode character or image URL (default: 🎓)
     * href - Optional URL. When set, render as a link instead of a button.
 
     Example context (json):
     {
-        "label": "Get Help",
-        "arialabel": "Open support widget",
-        "icon": "🎓"
+        "icon": "🎓",
+        "href": "https://example.freshdesk.com/support/home"
     }
 }}
 {{#href}}
-<a id="fd-help-btn" href="{{href}}" target="_blank" rel="noopener noreferrer" aria-label="{{arialabel}}">
-    <span aria-hidden="true" class="fd-icon" data-icon="{{icon}}"></span> {{label}}
+<a id="fd-help-btn" href="{{href}}" target="_blank" rel="noopener noreferrer"
+    aria-label="{{#str}}openportal, local_freshdesk{{/str}}">
+    <span aria-hidden="true" class="fd-icon" data-icon="{{icon}}"></span> {{#str}}gethelp, local_freshdesk{{/str}}
 </a>
 {{/href}}
 {{^href}}
-<button id="fd-help-btn" type="button" aria-label="{{arialabel}}">
-    <span aria-hidden="true" class="fd-icon" data-icon="{{icon}}"></span> {{label}}
+<button id="fd-help-btn" type="button" aria-label="{{#str}}openwidget, local_freshdesk{{/str}}">
+    <span aria-hidden="true" class="fd-icon" data-icon="{{icon}}"></span> {{#str}}gethelp, local_freshdesk{{/str}}
 </button>
 {{/href}}

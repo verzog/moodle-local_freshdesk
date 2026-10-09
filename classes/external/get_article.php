@@ -120,10 +120,17 @@ class get_article extends external_api {
             return $empty;
         }
 
+        // The article body is rendered into the page, so purify it with Moodle's HTML
+        // cleaner first: scripts, event handlers and other unsafe markup are removed.
+        $description = format_text((string) ($article['description'] ?? ''), FORMAT_HTML, [
+            'context' => $context,
+            'filter'  => false,
+        ]);
+
         return [
             'id'          => (int) ($article['id'] ?? 0),
             'title'       => (string) ($article['title'] ?? ''),
-            'description' => (string) ($article['description'] ?? ''),
+            'description' => $description,
         ];
     }
 
@@ -136,7 +143,7 @@ class get_article extends external_api {
         return new external_single_structure([
             'id'          => new external_value(PARAM_INT, 'Article ID'),
             'title'       => new external_value(PARAM_TEXT, 'Article title'),
-            'description' => new external_value(PARAM_RAW, 'Article HTML content'),
+            'description' => new external_value(PARAM_RAW, 'Article HTML content, cleaned by Moodle'),
         ]);
     }
 }
