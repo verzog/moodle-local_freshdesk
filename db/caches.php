@@ -32,4 +32,9 @@ $definitions = [
         'ttl'        => 600,
         'simplekeys' => true,
     ],
+    'ticket_fields' => [
+        'mode'       => \core_cache\store::MODE_APPLICATION,
+        'ttl'        => 900,
+        'simplekeys' => true,
+    ],
 ];

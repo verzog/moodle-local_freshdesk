@@ -315,6 +315,29 @@
     font-size: 14px;
 }
 
+/* Type of assistance dropdowns (built by the widget from the Freshdesk field). */
+#fd-category-wrap {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#fd-category-wrap select {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+}
+
+.fd-category-loading {
+    margin: 0;
+    color: #888;
+    font-size: 13px;
+}
+
 #fd-ticket-message {
     min-height: 90px;
     resize: vertical;

@@ -245,5 +245,12 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026100900, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026101000) {
+        // New "Type of assistance field" setting: the contact form can show a Freshdesk
+        // dropdown field's choices instead of a free-text subject. New web service
+        // local_freshdesk_get_ticket_options and cache ticket_fields. No database changes.
+        upgrade_plugin_savepoint(true, 2026101000, 'local', 'freshdesk');
+    }
+
     return true;
 }

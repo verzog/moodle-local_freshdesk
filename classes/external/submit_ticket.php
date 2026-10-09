@@ -28,8 +28,10 @@ namespace local_freshdesk\external;
 
 use core_external\external_api;
 use core_external\external_function_parameters;
+use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_freshdesk\local\ticket_fields;
 
 /**
  * Proxies ticket creation to the Freshdesk REST API, keeping the API key server-side.
@@ -57,6 +59,12 @@ class submit_ticket extends external_api {
                 VALUE_DEFAULT,
                 ''
             ),
+            'category'   => new external_multiple_structure(
+                new external_value(PARAM_TEXT, 'Chosen value at this level'),
+                'Chosen type of assistance, top level first (optional)',
+                VALUE_DEFAULT,
+                []
+            ),
         ]);
     }
 
@@ -74,6 +82,7 @@ class submit_ticket extends external_api {
      * @param string $coursename Name of the current course, or empty string.
      * @param string $userrole   Role label (Staff or Student), or empty string.
      * @param string $screenshot Base64-encoded JPEG, or empty string.
+     * @param string[] $category Chosen type of assistance, top level first, or empty.
      * @return array
      */
     public static function execute(
@@ -82,7 +91,8 @@ class submit_ticket extends external_api {
         string $currenturl,
         string $coursename,
         string $userrole,
-        string $screenshot = ''
+        string $screenshot = '',
+        array $category = []
     ): array {
         global $CFG, $USER;
 
@@ -95,6 +105,7 @@ class submit_ticket extends external_api {
             'coursename' => $coursename,
             'userrole'   => $userrole,
             'screenshot' => $screenshot,
+            'category'   => $category,
         ]);
 
         // The widget is exposed site-wide; validate the system context and require the
@@ -175,6 +186,28 @@ class submit_ticket extends external_api {
             $extrafields['responder_id'] = $responderid;
         }
 
+        // The type of assistance chosen from the dropdown fills the configured Freshdesk
+        // field. Only values that are current choices of that field are accepted.
+        $customfields = [];
+        if (!empty($params['category'])) {
+            $field = ticket_fields::get_configured_field();
+            $selection = $field === null ? null : ticket_fields::map_selection($field, $params['category']);
+            if ($selection === null) {
+                throw new \moodle_exception(
+                    'errorsubmitting',
+                    'local_freshdesk',
+                    '',
+                    null,
+                    'The chosen type of assistance is not a current choice of the configured Freshdesk field.'
+                );
+            }
+            if ($field['type'] === 'default_ticket_type') {
+                $extrafields['type'] = reset($selection);
+            } else {
+                $customfields = $selection;
+            }
+        }
+
         // Decode and validate screenshot if one was supplied.
         $screenshotpath = '';
         if ($params['screenshot'] !== '') {
@@ -211,14 +244,20 @@ class submit_ticket extends external_api {
                 'priority'      => '1',
                 'attachments[]' => new \CURLFile($screenshotpath, 'image/jpeg', 'screenshot.jpg'),
             ];
-            foreach ($extrafields as $field => $value) {
-                $postdata[$field] = (string) $value;
+            foreach ($extrafields as $name => $value) {
+                $postdata[$name] = (string) $value;
+            }
+            foreach ($customfields as $name => $value) {
+                $postdata['custom_fields[' . $name . ']'] = $value;
             }
             $responsebody = $curl->post($portalurl . '/api/v2/tickets', $postdata);
             @unlink($screenshotpath);
         } else {
             // JSON request (no attachment).
             $curl->setHeader(['Content-Type: application/json', $authheader]);
+            if ($customfields) {
+                $extrafields['custom_fields'] = $customfields;
+            }
             $payload = json_encode(array_merge([
                 'email'       => $USER->email,
                 'name'        => fullname($USER),

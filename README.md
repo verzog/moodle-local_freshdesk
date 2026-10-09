@@ -69,6 +69,7 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 | Enable widget | Show or hide the widget site-wide | Enabled |
 | Freshdesk portal URL | Your Freshdesk account URL. The widget stays hidden until this is set | *(empty)* |
 | Freshdesk API key | Found in Freshdesk under Profile Settings → Your API Key | *(empty)* |
+| Type of assistance field | Optional. Label or API name of a Freshdesk dropdown ticket field (e.g. `Types of assistance required`). The contact form shows its choices as a dropdown instead of a free-text subject | *(empty)* |
 | Default ticket type | Optional. Sent as the ticket `type`; must exactly match one of the values in Freshdesk Admin → Workflows → Ticket Fields → Type | *(empty)* |
 | Default group ID | Optional. Numeric Freshdesk group ID to assign new tickets to | *(empty)* |
 | Default agent ID | Optional. Numeric Freshdesk agent ID to assign new tickets to | *(empty)* |
@@ -83,6 +84,14 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 > Workflows → Ticket Fields, or fill in the corresponding default
 > type/group/agent settings above. The numeric group and agent IDs are
 > visible in the URL when editing them under Freshdesk Admin → Team.
+
+> **Type of assistance dropdown:** if your Freshdesk ticket form has a
+> mandatory dropdown such as *Types of assistance required*, enter its label in
+> *Type of assistance field*. Users then pick from that list instead of typing a
+> subject; the choice is sent in that field and becomes the ticket subject.
+> Choices are read from Freshdesk (refreshed every 15 minutes), so add or rename
+> them in Freshdesk Admin → Workflows → Ticket Fields. Dependent (nested) fields
+> show a second list only when the chosen option has sub-choices.
 
 > **Important:** the portal URL must be your `*.freshdesk.com` domain (the
 > domain the Freshdesk REST API lives on), and it must be HTTPS. A custom
@@ -120,7 +129,8 @@ reaches the browser.
 |----------|------|-----------|
 | `GET /api/v2/search/solutions` | When the user opens the modal or runs a search | Search term derived from course name / activity type / user input |
 | `GET /api/v2/solutions/articles/{id}` | When the user clicks a suggested article | Article ID only |
-| `POST /api/v2/tickets` | When the user submits the contact form | Name, email, Moodle username, user ID, profile URL, course name, page URL, role label, ticket subject, message, and optional screenshot |
+| `GET /api/v2/ticket_fields` | When the contact form opens, if *Type of assistance field* is set (cached for 15 minutes) | Nothing personal — reads the field's choices |
+| `POST /api/v2/tickets` | When the user submits the contact form | Name, email, Moodle username, user ID, profile URL, course name, page URL, role label, ticket subject, type of assistance, message, and optional screenshot |
 
 Connection and read timeouts are bounded (5s connect / 10–20s read) so a slow
 or unreachable Freshdesk endpoint never stalls a Moodle page. Requests are
@@ -250,11 +260,14 @@ local/freshdesk/
 │   │   └── ticket_submitted.php             # Audit event fired on successful submission
 │   ├── external/
 │   │   ├── get_article.php                  # AJAX external function (article fetch proxy)
+│   │   ├── get_ticket_options.php           # AJAX external function (type of assistance choices)
 │   │   ├── search_articles.php              # AJAX external function (search proxy)
 │   │   └── submit_ticket.php                # AJAX external function (ticket submission proxy)
 │   ├── hook/
 │   │   └── output/
 │   │       └── before_footer.php            # Hook callback — injects widget config and AMD module
+│   ├── local/
+│   │   └── ticket_fields.php                # Reads and validates the Freshdesk dropdown field
 │   └── privacy/
 │       └── provider.php                     # Privacy API provider (declares external data flow)
 ├── db/

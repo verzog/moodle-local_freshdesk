@@ -77,6 +77,7 @@ class provider implements
                 'pageurl'     => 'privacy:metadata:freshdesk:pageurl',
                 'userrole'    => 'privacy:metadata:freshdesk:userrole',
                 'message'     => 'privacy:metadata:freshdesk:message',
+                'assistancetype' => 'privacy:metadata:freshdesk:assistancetype',
                 'screenshot'  => 'privacy:metadata:freshdesk:screenshot',
             ],
             'privacy:metadata:freshdesk'
