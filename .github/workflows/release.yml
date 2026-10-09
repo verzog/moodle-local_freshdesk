@@ -84,13 +84,18 @@ jobs:
         run: |
           # Moodle expects the archive to extract into a folder named after the
           # plugin's leaf name (the part after local_).
+          # git archive packs exactly the committed files, minus anything marked
+          # export-ignore in .gitattributes (.github, tests, ...). It replaces an
+          # rsync --exclude='build' that also dropped amd/build/, so earlier ZIPs
+          # shipped without the compiled JavaScript ("No define call for
+          # local_freshdesk/widget").
           plugindir="${{ steps.meta.outputs.component }}"
           plugindir="${plugindir#local_}"
-          mkdir -p "build/$plugindir"
-          rsync -a --exclude='.git' --exclude='.github' --exclude='build' \
-            ./ "build/$plugindir/"
-          (cd build && zip -r -q "../${{ steps.meta.outputs.component }}-${{ steps.meta.outputs.tag }}.zip" "$plugindir")
-          echo "Built ${{ steps.meta.outputs.component }}-${{ steps.meta.outputs.tag }}.zip"
+          zipname="${{ steps.meta.outputs.component }}-${{ steps.meta.outputs.tag }}.zip"
+          git archive --format=zip --prefix="$plugindir/" -o "$zipname" HEAD
+          # Fail the release rather than publish a ZIP without the built AMD module.
+          unzip -l "$zipname" | grep -q "$plugindir/amd/build/widget.min.js"
+          echo "Built $zipname"
 
       - name: Create tag and GitHub release
         if: steps.tagcheck.outputs.exists == 'false'

@@ -22,7 +22,9 @@ A Moodle local plugin that adds a floating **Get Help** button to every page, op
 
 ## Requirements
 
-- Moodle 4.5 or later (CI-tested on 4.5, 5.0, 5.1 and 5.2)
+- Moodle 5.1 to 5.3 LTS (CI-tested on 5.1, 5.2 and 5.3). For Moodle 4.5 or
+  5.0, use release 2.4.8.
+- PHP 8.2 or later on Moodle 5.1; PHP 8.3 or later on Moodle 5.2 and 5.3
 - A Freshdesk account with API access
 - The Moodle server must be able to make outbound HTTPS requests to your
   `*.freshdesk.com` domain
@@ -33,9 +35,16 @@ A Moodle local plugin that adds a floating **Get Help** button to every page, op
    ```
    /path/to/moodle/local/freshdesk/
    ```
-   > **Moodle 5.x with the `public/` directory layout:** the web root moved, so
-   > the correct path is `/path/to/moodle/public/local/freshdesk/`. If the
-   > plugin is copied to the old path, Moodle will not detect it at all.
+   > **Moodle 5.1 and later use the `public/` directory layout:** the correct
+   > path is `/path/to/moodle/public/local/freshdesk/`. If the plugin is copied
+   > to the old path, Moodle will not detect it at all.
+
+   Install from the release ZIP attached to the
+   [GitHub release](https://github.com/verzog/moodle-local_freshdesk/releases)
+   (`local_freshdesk-vX.Y.Z.zip`), or from Moodle Marketplace. GitHub's
+   automatic "Source code (zip)" download extracts to the wrong folder name
+   (`moodle-local_freshdesk-X.Y.Z/`); if you use it, rename the folder to
+   `freshdesk`.
 
 2. Log in as a site administrator and go to:
    **Site Administration → Notifications**
@@ -143,6 +152,11 @@ If the widget is "not working" on a new site, work through these in order:
      hook callbacks and AMD JavaScript are both cached.
    - Check the browser's JavaScript console for errors from another plugin or
      theme: a JS exception elsewhere on the page can stop AMD modules loading.
+   - `No define call for local_freshdesk/widget` in the console means Moodle
+     could not find or read `amd/build/widget.min.js` on the server. Check the
+     file exists under `public/local/freshdesk/amd/build/` and is readable by
+     the web server user, then purge caches. Release ZIPs up to and including
+     2.4.8 were built without this folder; install 2.5.0 or later.
 2. **Button appears, but search finds nothing / articles won't load**
    - Confirm the portal URL is your own `https://yourcompany.freshdesk.com`
      domain (not a custom CNAME portal domain, not HTTP).
@@ -205,16 +219,18 @@ Actions tab and supply the tag.
 
 ## Building the JavaScript
 
-`amd/build/widget.min.js` must be regenerated whenever `amd/src/widget.js`
-changes. From a Moodle checkout:
+`amd/build/widget.min.js` (and its `.map`) must be regenerated with Moodle's
+grunt build whenever `amd/src/widget.js` changes, and committed together with
+the source. Do not minify it by hand: CI rebuilds it and fails on any
+difference. Build inside a Moodle **5.1** (`MOODLE_501_STABLE`) checkout — the
+branch CI's grunt check runs on:
 
 ```bash
 cd /path/to/moodle
-npm install
-grunt amd --root=local/freshdesk
+nvm use
+npm ci
+npx grunt amd stylelint --root=public/local/freshdesk
 ```
-
-(or minify `amd/src/widget.js` with terser into `amd/build/widget.min.js`).
 
 ## File Structure
 
@@ -223,6 +239,7 @@ local/freshdesk/
 ├── amd/
 │   ├── build/
 │   │   └── widget.min.js                    # Built AMD module (loaded by Moodle)
+│   │   └── widget.min.js.map
 │   └── src/
 │       └── widget.js                        # Source AMD module
 ├── classes/
@@ -250,8 +267,10 @@ local/freshdesk/
 ├── templates/
 │   ├── help_button.mustache                 # Floating Get Help button
 │   └── modal.mustache                       # Support modal markup
+├── tests/                                   # PHPUnit tests (external functions, hook, privacy)
 ├── lib.php
 ├── settings.php                             # Admin settings page
+├── styles.css                               # Widget styles (colour via --local-freshdesk-colour)
 ├── version.php                              # Plugin metadata
 ├── CHANGES.md                               # Per-version changelog / release notes
 └── README.md

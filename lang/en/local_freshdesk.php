@@ -77,6 +77,7 @@ $string['removescreenshot'] = 'Remove';
 $string['responder_id'] = 'Default agent ID';
 $string['responder_id_desc'] = 'Optional. Freshdesk agent ID to assign new tickets to. Required if your Freshdesk account makes the Agent field mandatory on ticket submission. Find the numeric ID in the URL when viewing the agent under Freshdesk Admin > Team > Agents.';
 $string['screenshothint'] = 'You can also paste (Ctrl+V / ⌘V) a screenshot.';
+$string['screenshotpreview'] = 'Screenshot preview';
 $string['searchbutton'] = 'Search';
 $string['searching'] = 'Searching...';
 $string['searchplaceholder'] = 'Search help articles...';

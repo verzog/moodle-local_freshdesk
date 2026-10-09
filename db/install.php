@@ -38,6 +38,10 @@ function xmldb_local_freshdesk_install(): bool {
     $oldconfig = get_config('local_freshdeskwidget');
     if (isset($oldconfig->portal_url)) {
         foreach ((array) $oldconfig as $name => $value) {
+            // The old plugin's version number must not overwrite this plugin's version.
+            if ($name === 'version') {
+                continue;
+            }
             set_config($name, $value, 'local_freshdesk');
         }
         return true;

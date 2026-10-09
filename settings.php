@@ -80,12 +80,11 @@ if ($hassiteconfig) {
         PARAM_RAW_TRIMMED
     ));
 
-    $settings->add(new admin_setting_configtext(
+    $settings->add(new admin_setting_configcolourpicker(
         'local_freshdesk/widget_color',
         get_string('widget_color', 'local_freshdesk'),
         get_string('widget_color_desc', 'local_freshdesk'),
-        '#006B6B',
-        PARAM_TEXT
+        '#006B6B'
     ));
 
     $settings->add(new admin_setting_configcheckbox(

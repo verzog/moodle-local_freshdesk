@@ -134,10 +134,12 @@ class search_articles extends external_api {
             if (empty($article['id']) || empty($article['title'])) {
                 continue;
             }
+            // Return plain text only; the browser displays it with textContent.
+            $summary    = (string) ($article['description_text'] ?? $article['description'] ?? '');
             $articles[] = [
                 'id'               => (int) $article['id'],
                 'title'            => (string) ($article['title']),
-                'description_text' => (string) ($article['description_text'] ?? $article['description'] ?? ''),
+                'description_text' => trim(html_entity_decode(strip_tags($summary), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
             ];
         }
 

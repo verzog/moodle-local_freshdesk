@@ -5,6 +5,39 @@ recorded here. Versions match `$plugin->release` in `version.php`. The section
 for each release is used verbatim as that version's GitHub release notes and can
 be pasted into the Moodle Marketplace release-notes field.
 
+## 2.5.0 - 2026-10-09
+
+Moodle 5.3 LTS release. Supports Moodle 5.1, 5.2 and 5.3; sites on Moodle 4.5
+or 5.0 should stay on 2.4.8.
+
+### Fixed
+- **Widget failed to load ("No define call for local_freshdesk/widget").** The
+  release ZIP was built with an rsync exclude that also removed `amd/build/`,
+  so the compiled JavaScript was missing. ZIPs are now built with
+  `git archive`, and the release fails if the built module is absent. The
+  module is also now built with Moodle's grunt toolchain instead of by hand.
+- Knowledge base articles are cleaned with Moodle's HTML purifier before they
+  are shown, and search summaries are returned as plain text.
+- After submitting a ticket, closing and reopening the widget now shows a blank
+  form again instead of the previous "submitted" message.
+- A removed screenshot no longer stays visible in the preview.
+- "No articles found" and the "Suggested for this page" heading now display
+  correctly.
+- No debugging notice on pages that do not set a page URL.
+
+### Improved
+- Widget styles moved from JavaScript into `styles.css`; the button colour
+  setting now uses Moodle's colour picker and only accepts colour values.
+- Templates use `{{#str}}` for all text.
+- Press Escape to close the support window.
+- The web services declare the `local/freshdesk:use` capability.
+
+### Compatibility
+- Requires Moodle 5.1 or later; tested on 5.1, 5.2 and 5.3 LTS with
+  PHP 8.2–8.4, PostgreSQL 17 and MariaDB 11.
+- CI covers Moodle 5.1–5.3 plus Moodle `main`, with coding-standard, mustache,
+  grunt and PHPUnit checks. PHPUnit tests added.
+
 ## 2.4.8 - 2026-08-03
 
 Rolls up all changes since 2.4.5, adding full Moodle 5.x support and new

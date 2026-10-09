@@ -23,730 +23,632 @@
  *  - A native contact form that submits tickets via Moodle AJAX (server-side proxy)
  *  - Optional screenshot attachment via file upload or clipboard paste
  *
+ * Styles live in the plugin's styles.css; only the admin-configured colour is
+ * set here, as the --local-freshdesk-colour CSS custom property.
+ *
  * @module      local_freshdesk/widget
  * @copyright   2026 verzog
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define(['core/ajax', 'core/templates', 'core/str'], function(Ajax, Templates, Str) {
 
-    /** @type {Object} Plugin configuration passed from PHP via js_call_amd. */
-    let cfg = {};
+import Ajax from 'core/ajax';
+import Templates from 'core/templates';
+import {getStrings} from 'core/str';
 
-    /** @type {Object} Pre-translated UI strings keyed by identifier. */
-    let strs = {};
+/** @type {Object} Plugin configuration passed from PHP via js_call_amd. */
+let cfg = {};
 
-    /** @type {string|null} Base64-encoded JPEG screenshot, or null when not set. */
-    let screenshotData = null;
+/** @type {Object} Pre-translated UI strings keyed by identifier. */
+const strs = {};
 
-    /** Identifiers of the language strings the widget needs at runtime. */
-    const STRING_KEYS = [
-        'articleloaderror', 'attachscreenshot', 'back', 'backtoresults',
-        'close', 'contactsupport', 'errormessage', 'errorsubject', 'gethelp',
-        'initialprompt', 'loadingarticle', 'loadingsuggestions',
-        'messagelabel', 'messageplaceholder', 'modaltitle', 'noarticles',
-        'nocontent', 'openfullarticle', 'openinfreshdesk', 'openportal',
-        'openwidget', 'privacynotice', 'relatedheading', 'removescreenshot',
-        'screenshothint', 'searchbutton', 'searching', 'searchplaceholder',
-        'searchunavailable', 'send', 'sending', 'submittingas',
-        'suggestedheading', 'supportrequest', 'ticketreply',
-        'ticketsubmiterror', 'ticketsubmitted', 'subjectlabel', 'viewprofile'
-    ];
+/** @type {string|null} Base64-encoded JPEG screenshot, or null when not set. */
+let screenshotData = null;
 
-    /**
-     * Processes icon elements, converting URLs to img tags or Unicode to text.
-     *
-     * @param {HTMLElement} container - Element to process icons in
-     */
-    const processIcons = function(container) {
-        const iconElements = container.querySelectorAll('.fd-icon[data-icon]');
-        iconElements.forEach(function(el) {
-            const icon = el.getAttribute('data-icon');
-            if (!icon) {
-                return;
-            }
-            if (icon.match(/^https?:\/\//) || icon.includes('/')) {
-                const img = document.createElement('img');
-                img.src = icon;
-                img.alt = '';
-                el.innerHTML = '';
-                el.appendChild(img);
-            } else {
-                el.textContent = icon;
-            }
-        });
-    };
+/** Identifiers of the language strings the widget needs at runtime. */
+const STRING_KEYS = [
+    'articleloaderror', 'errormessage', 'errorsubject', 'initialprompt',
+    'loadingarticle', 'loadingsuggestions', 'noarticles', 'nocontent',
+    'openinfreshdesk', 'searching', 'searchunavailable', 'send', 'sending',
+    'submittingas', 'suggestedheading', 'supportrequest', 'ticketsubmiterror',
+];
 
-    /**
-     * Injects the required CSS styles into the document head.
-     */
-    const injectStyles = function() {
-        const c = cfg.widgetColor;
-        const css = [
-            /* Floating help button */
-            '#fd-help-btn {',
-            '  position: fixed; bottom: 24px; right: 24px; z-index: 9998;',
-            `  background: ${c}; color: #fff;`,
-            '  border: none; border-radius: 24px;',
-            '  padding: 12px 20px; font-size: 15px; font-weight: 600;',
-            '  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.25);',
-            '  transition: background 0.2s;',
-            '  text-decoration: none; display: inline-block; line-height: 1;',
-            '}',
-            '#fd-help-btn:hover { filter: brightness(1.1); color: #fff; text-decoration: none; }',
-            /* Modal overlay and shell */
-            '#fd-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; }',
-            '#fd-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 580px; max-width: 95vw; height: 700px; max-height: 90vh; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); display: flex; flex-direction: column; }',
-            /* Header */
-            `#fd-modal-header { background: ${c}; color: #fff; padding: 14px 16px; display: flex; ` +
-            `align-items: center; justify-content: space-between; flex-shrink: 0; }`,
-            '#fd-modal-header h2 { margin: 0; font-size: 22px; font-weight: 600; color: #fff ' +
-            '!important; flex: 1; min-width: 0; word-break: break-word; }',
-            '#fd-modal-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; }',
-            /* Search panel */
-            '#fd-search-panel { padding: 14px 16px; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }',
-            '#fd-search-row { display: flex; gap: 8px; }',
-            '#fd-search-input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }',
-            `#fd-search-btn { padding: 8px 14px; background: ${c}; color: #fff; border: none; ` +
-            `border-radius: 6px; cursor: pointer; font-size: 14px; }`,
-            /* Results area */
-            '#fd-results { flex: 1; overflow-y: auto; padding: 0; display: flex; flex-direction: column; }',
-            '#fd-status { padding: 16px; text-align: center; color: #666; font-size: 14px; }',
-            /* Article list */
-            '#fd-articles { padding: 8px 16px; }',
-            '.fd-article-item { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }',
-            `.fd-article-title { font-size: 14px; font-weight: 600; color: ${c}; cursor: pointer; ` +
-            `text-decoration: none; display: block; }`,
-            '.fd-article-title:hover { text-decoration: underline; }',
-            '.fd-article-desc { font-size: 13px; color: #555; margin: 4px 0 0; }',
-            /* Article viewer */
-            '#fd-article-view { display: none; flex-direction: column; flex: 1; min-height: 0; }',
-            '#fd-article-back { padding: 10px 16px; background: #f5f5f5; border-bottom: 1px solid #e5e5e5; display: flex; gap: 10px; flex-shrink: 0; }',
-            '#fd-article-back button, #fd-contact-form-back button { background: none; border: none; cursor: pointer; color: #555; font-size: 13px; padding: 0; }',
-            '#fd-article-back button:hover, #fd-contact-form-back button:hover { color: #000; }',
-            '#fd-article-open-btn { margin-left: auto; }',
-            '#fd-article-content { flex: 1; overflow-y: auto; padding: 16px; font-size: 14px; line-height: 1.5; }',
-            /* Contact form */
-            '#fd-contact-form { display: none; flex-direction: column; flex: 1; min-height: 0; }',
-            '#fd-contact-form-back { padding: 10px 16px; background: #f5f5f5; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }',
-            '#fd-contact-success { display: none; text-align: center; padding: 32px 16px; }',
-            '#fd-contact-success-msg { font-size: 16px; font-weight: 600; color: #2a7a2a; }',
-            '#fd-contact-success-sub { font-size: 14px; color: #555; }',
-            '#fd-contact-fields { padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; }',
-            '#fd-contact-userinfo { font-size: 13px; color: #666; font-style: italic; }',
-            /* Suggested articles inside contact form */
-            '#fd-suggest-section { background: #f5f8ff; border: 1px solid #dde8ff; border-radius: 6px; padding: 10px 12px; }',
-            '#fd-suggest-heading { font-size: 13px; font-weight: 600; color: #555; margin: 0 0 6px; }',
-            `.fd-suggest-link { display: block; padding: 3px 0; font-size: 13px; color: ${c}; text-decoration: none; }`,
-            '.fd-suggest-link:hover { text-decoration: underline; }',
-            /* Form fields */
-            '#fd-contact-fields label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-bottom: 4px; }',
-            '#fd-ticket-subject { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; box-sizing: border-box; }',
-            '#fd-ticket-message { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; min-height: 90px; resize: vertical; box-sizing: border-box; }',
-            /* Screenshot controls */
-            '#fd-screenshot-attach { padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 13px; }',
-            '#fd-screenshot-attach:hover { background: #e4e4e4; }',
-            '#fd-screenshot-preview-wrap { position: relative; margin-top: 8px; display: none; }',
-            '#fd-screenshot-img { width: 100%; max-height: 120px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; }',
-            '#fd-screenshot-clear { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 2px 7px; }',
-            '#fd-screenshot-hint { font-size: 12px; color: #888; margin: 6px 0 0; }',
-            /* Validation and privacy */
-            '#fd-contact-error { color: #c00; font-size: 13px; margin: 0; }',
-            '#fd-privacy-notice { font-size: 12px; color: #888; margin: 0; }',
-            /* Submit button */
-            `#fd-contact-submit { width: 100%; padding: 10px 20px; background: ${c}; color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; }`,
-            `#fd-contact-submit:hover:not(:disabled) { filter: brightness(1.1); }`,
-            '#fd-contact-submit:disabled { opacity: 0.7; cursor: default; }',
-            /* Contact bar (bottom) */
-            `#fd-contact-bar { background: ${c}; padding: 10px 16px; flex-shrink: 0; text-align: center; }`,
-            `#fd-contact-btn { background: none; border: 2px solid rgba(255,255,255,0.8); color: #fff; padding: 7px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }`,
-            '#fd-contact-btn:hover { border-color: #fff; }',
-            /* Icon */
-            '.fd-icon { display: inline-block; vertical-align: middle; margin-right: 4px; }',
-            '.fd-icon img { height: 1em; width: 1em; object-fit: contain; vertical-align: middle; }',
-            /* Responsive */
-            '@media (max-width: 600px) { #fd-modal { width: 98vw; height: 95vh; } }',
-            /* Hide the floating button while a Moodle modal or YUI dialog (e.g.
-               the filepicker) is open in narrow-screen / fullscreen mode, so it
-               does not cover the dialog's controls. */
-            'body.modal-open #fd-help-btn { display: none; }',
-            'body:has(.moodle-dialogue-fullscreen) #fd-help-btn { display: none; }'
-        ].join('\n');
+/** Default icon when none is configured. */
+const DEFAULT_ICON = '🎓';
 
-        const style = document.createElement('style');
-        style.textContent = css;
-        document.head.appendChild(style);
-    };
+/**
+ * Shorthand for document.getElementById.
+ *
+ * @param {string} id Element id.
+ * @returns {HTMLElement|null}
+ */
+const byId = (id) => document.getElementById(id);
 
-    /**
-     * Search articles in Freshdesk.
-     *
-     * @param {string} term
-     * @returns {Promise}
-     */
-    const searchArticles = function(term) {
-        return Ajax.call([{
-            methodname: 'local_freshdesk_search_articles',
-            args: {term: term}
-        }])[0];
-    };
+/**
+ * Shows or hides an element by id.
+ *
+ * @param {string} id Element id.
+ * @param {string} display CSS display value; 'none' hides the element.
+ */
+const setDisplay = (id, display) => {
+    const el = byId(id);
+    if (el) {
+        el.style.display = display;
+    }
+};
 
-    /**
-     * Get a single article from Freshdesk.
-     *
-     * @param {number} articleId
-     * @returns {Promise}
-     */
-    const getArticle = function(articleId) {
-        return Ajax.call([{
-            methodname: 'local_freshdesk_get_article',
-            args: {articleid: articleId}
-        }])[0];
-    };
-
-    /**
-     * Renders article results into the results panel.
-     *
-     * @param {Array} articles
-     */
-    const renderArticles = function(articles) {
-        const articlesDiv = document.getElementById('fd-articles');
-        const status = document.getElementById('fd-status');
-
-        if (!articles || articles.length === 0) {
-            status.textContent = strs.noarticles;
-            articlesDiv.innerHTML = '';
+/**
+ * Converts icon placeholders into an image (for URLs) or text (for Unicode).
+ *
+ * @param {HTMLElement} container Element to process icons in.
+ */
+const processIcons = (container) => {
+    container.querySelectorAll('.fd-icon[data-icon]').forEach((el) => {
+        const icon = el.getAttribute('data-icon');
+        if (!icon) {
             return;
         }
+        el.textContent = '';
+        if (icon.match(/^https?:\/\//) || icon.includes('/')) {
+            const img = document.createElement('img');
+            img.src = icon;
+            img.alt = '';
+            el.appendChild(img);
+        } else {
+            el.textContent = icon;
+        }
+    });
+};
 
-        status.style.display = 'none';
-        articlesDiv.innerHTML = '';
+/**
+ * Builds the public Freshdesk URL of an article.
+ *
+ * @param {number} articleId Freshdesk article ID.
+ * @returns {string}
+ */
+const articleUrl = (articleId) => cfg.portalUrl + '/support/solutions/articles/' + articleId;
 
-        articles.slice(0, 8).forEach(function(article) {
-            var item = document.createElement('div');
-            item.className = 'fd-article-item';
+/**
+ * Searches the Freshdesk knowledge base through the server-side proxy.
+ *
+ * @param {string} term Search term.
+ * @returns {Promise}
+ */
+const searchArticles = (term) => Ajax.call([{
+    methodname: 'local_freshdesk_search_articles',
+    args: {term: term},
+}])[0];
 
-            var title = document.createElement('a');
-            title.className = 'fd-article-title';
-            title.href = '#';
-            title.textContent = article.title || '';
-            title.addEventListener('click', function(e) {
-                e.preventDefault();
-                showArticle(
-                    article.id,
-                    article.title,
-                    cfg.portalUrl + '/support/solutions/articles/' + article.id
-                );
-            });
+/**
+ * Fetches a single article through the server-side proxy.
+ *
+ * @param {number} articleId Freshdesk article ID.
+ * @returns {Promise}
+ */
+const getArticle = (articleId) => Ajax.call([{
+    methodname: 'local_freshdesk_get_article',
+    args: {articleid: articleId},
+}])[0];
 
-            var desc = document.createElement('p');
-            desc.className = 'fd-article-desc';
-            var tmp = document.createElement('div');
-            tmp.innerHTML = article.description_text || article.description || '';
-            desc.textContent = (tmp.textContent || '').substring(0, 120) + '...';
+/**
+ * Sets the status line text and makes sure it is visible.
+ *
+ * @param {string} text Text to show.
+ */
+const setStatus = (text) => {
+    const status = byId('fd-status');
+    status.textContent = text;
+    status.style.display = '';
+};
 
-            item.appendChild(title);
-            item.appendChild(desc);
-            articlesDiv.appendChild(item);
-        });
+/**
+ * Displays a specific article in the viewer panel.
+ *
+ * @param {number} articleId Freshdesk article ID.
+ */
+const showArticle = (articleId) => {
+    const articleContent = byId('fd-article-content');
+    const fullUrl = articleUrl(articleId);
+
+    setDisplay('fd-articles', 'none');
+    setDisplay('fd-status', 'none');
+    setDisplay('fd-contact-form', 'none');
+    setDisplay('fd-article-view', 'flex');
+
+    articleContent.textContent = '';
+    const loading = document.createElement('p');
+    loading.className = 'fd-article-loading';
+    loading.textContent = strs.loadingarticle;
+    articleContent.appendChild(loading);
+
+    byId('fd-article-open-btn').onclick = () => {
+        window.open(fullUrl, '_blank', 'noopener');
     };
 
-    /**
-     * Displays a specific article in the viewer panel.
-     *
-     * @param {number} articleId
-     * @param {string} articleTitle
-     * @param {string} fullUrl
-     */
-    const showArticle = function(articleId, articleTitle, fullUrl) {
-        const articleView = document.getElementById('fd-article-view');
-        const articleContent = document.getElementById('fd-article-content');
-        const openBtn = document.getElementById('fd-article-open-btn');
+    getArticle(articleId).then((data) => {
+        if (!data || !data.id) {
+            throw new Error('Not found');
+        }
+        if (data.description) {
+            // The article HTML has already been purified server-side by format_text().
+            articleContent.innerHTML = data.description;
+        } else {
+            articleContent.textContent = strs.nocontent;
+        }
+        return data;
+    }).catch(() => {
+        articleContent.textContent = '';
+        const errp = document.createElement('p');
+        errp.className = 'fd-article-error';
+        errp.textContent = strs.articleloaderror + ' ';
+        const link = document.createElement('a');
+        link.href = fullUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = strs.openinfreshdesk;
+        errp.appendChild(link);
+        articleContent.appendChild(errp);
+    });
+};
 
-        document.getElementById('fd-articles').style.display = 'none';
-        document.getElementById('fd-status').style.display = 'none';
-        document.getElementById('fd-contact-form').style.display = 'none';
-        articleView.style.display = 'flex';
+/**
+ * Renders article results into the results panel.
+ *
+ * @param {Array} articles Articles returned by the search proxy.
+ * @param {string} heading Status text shown above the results, or '' for none.
+ */
+const renderArticles = (articles, heading) => {
+    const articlesDiv = byId('fd-articles');
+    articlesDiv.textContent = '';
 
-        articleContent.innerHTML = '';
-        const loading = document.createElement('p');
-        loading.style.cssText = 'color:#999;text-align:center;padding:20px;';
-        loading.textContent = strs.loadingarticle;
-        articleContent.appendChild(loading);
+    if (!articles || articles.length === 0) {
+        setStatus(strs.noarticles);
+        return;
+    }
 
-        openBtn.onclick = function() {
-            window.open(fullUrl, '_blank', 'noopener');
-        };
+    if (heading) {
+        setStatus(heading);
+    } else {
+        setDisplay('fd-status', 'none');
+    }
 
-        getArticle(articleId).then(function(data) {
-            if (!data || !data.id) {
-                throw new Error('Not found');
+    articles.slice(0, 8).forEach((article) => {
+        const item = document.createElement('div');
+        item.className = 'fd-article-item';
+
+        const title = document.createElement('a');
+        title.className = 'fd-article-title';
+        title.href = articleUrl(article.id);
+        title.textContent = article.title || '';
+        title.addEventListener('click', (e) => {
+            e.preventDefault();
+            showArticle(article.id);
+        });
+
+        // The proxy returns plain text, so textContent is all that is needed.
+        const text = article.description_text || '';
+        const desc = document.createElement('p');
+        desc.className = 'fd-article-desc';
+        desc.textContent = text.length > 120 ? text.substring(0, 120) + '...' : text;
+
+        item.appendChild(title);
+        item.appendChild(desc);
+        articlesDiv.appendChild(item);
+    });
+};
+
+/**
+ * Extracts search terms from the current page context.
+ *
+ * @returns {Array}
+ */
+const getSearchTerms = () => {
+    const terms = [];
+    if (cfg.courseName) {
+        terms.push(cfg.courseName);
+    }
+    if (cfg.currentUrl) {
+        try {
+            const parts = new URL(cfg.currentUrl).pathname.split('/').filter(Boolean);
+            const modIdx = parts.indexOf('mod');
+            if (modIdx !== -1 && parts[modIdx + 1] && terms.indexOf(parts[modIdx + 1]) === -1) {
+                terms.push(parts[modIdx + 1]);
             }
-            articleContent.innerHTML = data.description || strs.nocontent;
-            return data;
-        }).catch(function() {
-            articleContent.innerHTML = '';
-            const errp = document.createElement('p');
-            errp.style.color = '#c00';
-            errp.textContent = strs.articleloaderror + ' ';
+        } catch (e) {
+            // Ignore a malformed URL; the course name alone is still useful.
+        }
+    }
+    return terms;
+};
+
+/**
+ * Searches for several terms at once and merges the results without duplicates.
+ *
+ * @param {Array} terms Search terms.
+ * @returns {Promise}
+ */
+const searchArticlesMulti = (terms) => {
+    if (!terms || terms.length === 0) {
+        return Promise.resolve([]);
+    }
+    return Promise.all(terms.map(searchArticles)).then((resultsArray) => {
+        const merged = [];
+        const seenIds = {};
+        resultsArray.forEach((results) => {
+            (results || []).forEach((article) => {
+                if (!seenIds[article.id]) {
+                    seenIds[article.id] = true;
+                    merged.push(article);
+                }
+            });
+        });
+        return merged;
+    });
+};
+
+/**
+ * Loads suggested articles into the contact form based on page context.
+ */
+const loadSuggestedArticles = () => {
+    const terms = getSearchTerms();
+    if (!terms.length) {
+        return;
+    }
+
+    const articlesDiv = byId('fd-suggest-articles');
+    setDisplay('fd-suggest-section', 'block');
+    articlesDiv.textContent = strs.loadingsuggestions;
+
+    searchArticlesMulti(terms).then((results) => {
+        if (!results || results.length === 0) {
+            setDisplay('fd-suggest-section', 'none');
+            return results;
+        }
+        articlesDiv.textContent = '';
+        results.slice(0, 3).forEach((article) => {
             const link = document.createElement('a');
-            link.href = fullUrl;
+            link.className = 'fd-suggest-link';
+            link.textContent = article.title;
+            link.href = articleUrl(article.id);
             link.target = '_blank';
-            link.textContent = strs.openinfreshdesk;
-            errp.appendChild(link);
-            articleContent.appendChild(errp);
+            link.rel = 'noopener noreferrer';
+            articlesDiv.appendChild(link);
         });
-    };
+        return results;
+    }).catch(() => {
+        setDisplay('fd-suggest-section', 'none');
+    });
+};
 
-    /**
-     * Extracts search terms from the current page context.
-     *
-     * @returns {Array}
-     */
-    const getSearchTerms = function() {
-        const terms = [];
-        if (cfg.courseName) {
-            terms.push(cfg.courseName);
+/**
+ * Loads suggestions for the current page when the widget opens.
+ */
+const loadPageSuggestions = () => {
+    const terms = getSearchTerms();
+    if (!terms.length) {
+        return;
+    }
+
+    setStatus(strs.loadingsuggestions);
+    searchArticlesMulti(terms).then((results) => {
+        if (!results || results.length === 0) {
+            setStatus(strs.initialprompt);
+        } else {
+            renderArticles(results, strs.suggestedheading);
         }
-        if (cfg.currentUrl) {
-            try {
-                const parts = new URL(cfg.currentUrl).pathname.split('/').filter(Boolean);
-                const modIdx = parts.indexOf('mod');
-                if (modIdx !== -1 && parts[modIdx + 1]) {
-                    const activityType = parts[modIdx + 1];
-                    if (terms.indexOf(activityType) === -1) {
-                        terms.push(activityType);
-                    }
-                }
-            } catch (e) {
-                // Ignore malformed URL.
-            }
-        }
-        return terms;
-    };
+        return results;
+    }).catch(() => {
+        setStatus(strs.initialprompt);
+    });
+};
 
-    /**
-     * Performs a combined search for multiple terms.
-     *
-     * @param {Array} terms
-     * @returns {Promise}
-     */
-    const searchArticlesMulti = function(terms) {
-        if (!terms || terms.length === 0) {
-            return Promise.resolve([]);
-        }
-        const promises = terms.map(function(term) {
-            return searchArticles(term);
-        });
+/**
+ * Removes any attached screenshot and hides its preview.
+ */
+const clearScreenshot = () => {
+    screenshotData = null;
+    byId('fd-screenshot-img').src = 'data:,';
+    setDisplay('fd-screenshot-preview-wrap', 'none');
+    byId('fd-screenshot-file').value = '';
+};
 
-        return Promise.all(promises).then(function(resultsArray) {
-            const merged = [];
-            const seenIds = {};
-            resultsArray.forEach(function(results) {
-                if (results) {
-                    results.forEach(function(article) {
-                        if (!seenIds[article.id]) {
-                            seenIds[article.id] = true;
-                            merged.push(article);
-                        }
-                    });
-                }
-            });
-            return merged;
-        });
-    };
+/**
+ * Hides the contact form validation / submission error.
+ */
+const clearContactError = () => {
+    const errorEl = byId('fd-contact-error');
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+};
 
-    /**
-     * Displays the contact/ticket submission form.
-     */
-    const showContactForm = function() {
-        document.getElementById('fd-search-panel').style.display = 'none';
-        document.getElementById('fd-contact-bar').style.display = 'none';
-        document.getElementById('fd-status').style.display = 'none';
-        document.getElementById('fd-articles').style.display = 'none';
-        document.getElementById('fd-article-view').style.display = 'none';
+/**
+ * Shows an error message on the contact form.
+ *
+ * @param {string} message Message to show.
+ */
+const showContactError = (message) => {
+    const errorEl = byId('fd-contact-error');
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+};
 
-        const userInfoEl = document.getElementById('fd-contact-userinfo');
-        userInfoEl.innerHTML = '';
-        if (cfg.userName) {
-            userInfoEl.textContent = strs.submittingas + ' ' + cfg.userName;
-            userInfoEl.style.display = '';
-        }
+/**
+ * Displays the contact/ticket submission form.
+ */
+const showContactForm = () => {
+    setDisplay('fd-search-panel', 'none');
+    setDisplay('fd-contact-bar', 'none');
+    setDisplay('fd-status', 'none');
+    setDisplay('fd-articles', 'none');
+    setDisplay('fd-article-view', 'none');
 
-        const subjectInput = document.getElementById('fd-ticket-subject');
-        if (subjectInput && !subjectInput.value) {
-            subjectInput.value = strs.supportrequest + (cfg.courseName ? ' - ' + cfg.courseName : '');
-        }
+    const userInfoEl = byId('fd-contact-userinfo');
+    userInfoEl.textContent = cfg.userName ? strs.submittingas + ' ' + cfg.userName : '';
 
-        document.getElementById('fd-contact-form').style.display = 'flex';
-        document.getElementById('fd-ticket-message').focus();
+    const subjectInput = byId('fd-ticket-subject');
+    if (!subjectInput.value) {
+        subjectInput.value = strs.supportrequest + (cfg.courseName ? ' - ' + cfg.courseName : '');
+    }
 
-        loadSuggestedArticles();
-    };
+    setDisplay('fd-contact-form', 'flex');
+    byId('fd-ticket-message').focus();
 
-    /**
-     * Loads suggested articles based on page context.
-     */
-    const loadSuggestedArticles = function() {
-        const terms = getSearchTerms();
-        if (!terms.length) {
-            return;
-        }
+    loadSuggestedArticles();
+};
 
-        const section = document.getElementById('fd-suggest-section');
-        const articlesDiv = document.getElementById('fd-suggest-articles');
+/**
+ * Returns the contact form to a blank state, ready for a new ticket.
+ */
+const resetContactForm = () => {
+    setDisplay('fd-contact-fields', '');
+    setDisplay('fd-contact-success', 'none');
+    byId('fd-ticket-subject').value = '';
+    byId('fd-ticket-message').value = '';
+    const submitBtn = byId('fd-contact-submit');
+    submitBtn.disabled = false;
+    submitBtn.textContent = strs.send;
+    clearContactError();
+    clearScreenshot();
+};
 
-        section.style.display = 'block';
-        articlesDiv.innerHTML = strs.loadingsuggestions;
-
-        searchArticlesMulti(terms).then(function(results) {
-            if (!results || results.length === 0) {
-                section.style.display = 'none';
-                return;
-            }
-            articlesDiv.innerHTML = '';
-            results.slice(0, 3).forEach(function(article) {
-                const link = document.createElement('a');
-                link.className = 'fd-suggest-link';
-                link.textContent = article.title;
-                link.href = cfg.portalUrl + '/support/solutions/articles/' + article.id;
-                link.target = '_blank';
-                articlesDiv.appendChild(link);
-            });
-        }).catch(function() {
-            section.style.display = 'none';
-        });
-    };
-
-    /**
-     * Loads initial page suggestions when the widget opens.
-     */
-    const loadPageSuggestions = function() {
-        const terms = getSearchTerms();
-        if (!terms.length) {
-            return;
-        }
-
-        const status = document.getElementById('fd-status');
-        status.textContent = strs.loadingsuggestions;
-
-        searchArticlesMulti(terms).then(function(results) {
-            if (!results || results.length === 0) {
-                status.textContent = strs.initialprompt;
-            } else {
-                status.textContent = strs.suggestedheading;
-                renderArticles(results);
-            }
-        }).catch(function() {
-            status.textContent = strs.initialprompt;
-        });
-    };
-
-    /**
-     * Processes a file or blob as a screenshot.
-     *
-     * @param {Blob} file
-     */
-    const processScreenshotFile = function(file) {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const maxW = 1280;
-                const scale = img.width > maxW ? maxW / img.width : 1;
-                canvas.width = Math.round(img.width * scale);
-                canvas.height = Math.round(img.height * scale);
-                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                screenshotData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-                document.getElementById('fd-screenshot-img').src = 'data:image/jpeg;base64,' + screenshotData;
-                document.getElementById('fd-screenshot-preview-wrap').style.display = 'block';
-            };
-            img.src = ev.target.result;
+/**
+ * Processes a file or blob as a screenshot: scales it down and stores it as JPEG.
+ *
+ * @param {Blob} file Image file or clipboard blob.
+ */
+const processScreenshotFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxW = 1280;
+            const scale = img.width > maxW ? maxW / img.width : 1;
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            screenshotData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            byId('fd-screenshot-img').src = 'data:image/jpeg;base64,' + screenshotData;
+            setDisplay('fd-screenshot-preview-wrap', 'block');
         };
-        reader.readAsDataURL(file);
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+/**
+ * Submits the ticket via AJAX.
+ */
+const submitTicket = () => {
+    const subject = byId('fd-ticket-subject').value.trim();
+    const message = byId('fd-ticket-message').value.trim();
+    const submitBtn = byId('fd-contact-submit');
+
+    if (!subject || !message) {
+        showContactError(!subject ? strs.errorsubject : strs.errormessage);
+        return;
+    }
+
+    clearContactError();
+    submitBtn.disabled = true;
+    submitBtn.textContent = strs.sending;
+
+    Ajax.call([{
+        methodname: 'local_freshdesk_submit_ticket',
+        args: {
+            subject: subject,
+            message: message,
+            currenturl: cfg.currentUrl || '',
+            coursename: cfg.courseName || '',
+            userrole: cfg.userRole || '',
+            screenshot: screenshotData || '',
+        },
+    }])[0].then((result) => {
+        if (result.success) {
+            setDisplay('fd-contact-fields', 'none');
+            setDisplay('fd-contact-success', 'block');
+        }
+        return result;
+    }).catch(() => {
+        showContactError(strs.ticketsubmiterror);
+        submitBtn.disabled = false;
+        submitBtn.textContent = strs.send;
+    });
+};
+
+/**
+ * Returns the modal to its default (search) view.
+ */
+const resetModal = () => {
+    setDisplay('fd-articles', '');
+    setStatus(strs.initialprompt);
+    setDisplay('fd-article-view', 'none');
+    setDisplay('fd-contact-form', 'none');
+    setDisplay('fd-search-panel', '');
+    setDisplay('fd-contact-bar', '');
+    resetContactForm();
+};
+
+/**
+ * Wires up DOM events.
+ *
+ * @param {HTMLElement} overlay The modal overlay element.
+ */
+const wireEvents = (overlay) => {
+    const searchInput = byId('fd-search-input');
+    const screenshotFile = byId('fd-screenshot-file');
+
+    const closeModal = () => {
+        overlay.style.display = 'none';
+        resetModal();
     };
 
-    /**
-     * Submits the ticket via AJAX.
-     */
-    const submitTicket = function() {
-        const subject = document.getElementById('fd-ticket-subject').value.trim();
-        const message = document.getElementById('fd-ticket-message').value.trim();
-        const errorEl = document.getElementById('fd-contact-error');
-        const submitBtn = document.getElementById('fd-contact-submit');
+    byId('fd-help-btn').addEventListener('click', () => {
+        overlay.style.display = 'block';
+        searchInput.focus();
+        loadPageSuggestions();
+    });
 
-        if (!subject || !message) {
-            errorEl.textContent = !subject ? strs.errorsubject : strs.errormessage;
-            errorEl.style.display = 'block';
+    byId('fd-modal-close').addEventListener('click', closeModal);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.style.display === 'block') {
+            closeModal();
+        }
+    });
+
+    const runSearch = () => {
+        const term = searchInput.value.trim();
+        if (!term) {
             return;
         }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = strs.sending;
-
-        Ajax.call([{
-            methodname: 'local_freshdesk_submit_ticket',
-            args: {
-                subject: subject,
-                message: message,
-                currenturl: cfg.currentUrl || '',
-                coursename: cfg.courseName || '',
-                userrole: cfg.userRole || '',
-                screenshot: screenshotData || ''
-            }
-        }])[0].then(function(result) {
-            if (result.success) {
-                document.getElementById('fd-contact-fields').style.display = 'none';
-                document.getElementById('fd-contact-success').style.display = 'block';
-            }
-            return result;
-        }).catch(function() {
-            errorEl.textContent = strs.ticketsubmiterror;
-            errorEl.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.textContent = strs.send;
+        setDisplay('fd-articles', '');
+        setDisplay('fd-article-view', 'none');
+        setStatus(strs.searching);
+        searchArticles(term).then((results) => {
+            renderArticles(results, '');
+            return results;
+        }).catch(() => {
+            setStatus(strs.searchunavailable);
         });
     };
 
-    /**
-     * Resets the modal state to default.
-     */
-    const resetModal = function() {
-        document.getElementById('fd-articles').style.display = '';
-        document.getElementById('fd-status').style.display = '';
-        document.getElementById('fd-status').textContent = strs.initialprompt;
-        document.getElementById('fd-article-view').style.display = 'none';
-        document.getElementById('fd-contact-form').style.display = 'none';
-        document.getElementById('fd-search-panel').style.display = '';
-        document.getElementById('fd-contact-bar').style.display = '';
-        screenshotData = null;
-    };
+    byId('fd-search-btn').addEventListener('click', runSearch);
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            runSearch();
+        }
+    });
 
-    /**
-     * Wires up DOM events.
-     *
-     * @param {HTMLElement} overlay
-     */
-    const wireEvents = function(overlay) {
-        const helpBtn = document.getElementById('fd-help-btn');
-        const closeBtn = document.getElementById('fd-modal-close');
-        const searchBtn = document.getElementById('fd-search-btn');
-        const searchInput = document.getElementById('fd-search-input');
+    byId('fd-contact-btn').addEventListener('click', showContactForm);
+    byId('fd-contact-submit').addEventListener('click', submitTicket);
 
-        helpBtn.addEventListener('click', function() {
-            overlay.style.display = 'block';
-            searchInput.focus();
-            loadPageSuggestions();
+    byId('fd-contact-back-btn').addEventListener('click', () => {
+        setDisplay('fd-contact-form', 'none');
+        setDisplay('fd-search-panel', '');
+        setDisplay('fd-contact-bar', '');
+        setDisplay('fd-status', '');
+        setDisplay('fd-articles', '');
+        resetContactForm();
+    });
+
+    byId('fd-article-back-btn').addEventListener('click', () => {
+        setDisplay('fd-article-view', 'none');
+        setDisplay('fd-articles', '');
+        setDisplay('fd-status', '');
+    });
+
+    byId('fd-screenshot-attach').addEventListener('click', () => {
+        screenshotFile.click();
+    });
+    screenshotFile.addEventListener('change', () => {
+        if (screenshotFile.files && screenshotFile.files[0]) {
+            processScreenshotFile(screenshotFile.files[0]);
+        }
+    });
+
+    byId('fd-screenshot-clear').addEventListener('click', clearScreenshot);
+
+    document.addEventListener('paste', (e) => {
+        // Only capture pastes while the contact form is open, so pasting an image
+        // elsewhere on the page (e.g. into a text editor) is never swallowed.
+        const contactForm = byId('fd-contact-form');
+        if (overlay.style.display !== 'block' || !contactForm || contactForm.style.display !== 'flex') {
+            return;
+        }
+        const clipboard = e.clipboardData;
+        if (!clipboard || !clipboard.items) {
+            return;
+        }
+        const items = Array.from(clipboard.items);
+        const image = items.find((item) => item.type.indexOf('image') !== -1);
+        if (image) {
+            processScreenshotFile(image.getAsFile());
+        }
+    });
+};
+
+/**
+ * Loads the language strings used at runtime.
+ *
+ * @returns {Promise}
+ */
+const loadStrings = () => getStrings(STRING_KEYS.map((key) => ({key: key, component: 'local_freshdesk'})))
+    .then((values) => {
+        STRING_KEYS.forEach((key, idx) => {
+            strs[key] = values[idx];
         });
+        return strs;
+    });
 
-        closeBtn.addEventListener('click', function() {
-            overlay.style.display = 'none';
-            resetModal();
-        });
-
-        const runSearch = function() {
-            const term = searchInput.value.trim();
-            if (!term) {
-                return;
-            }
-            document.getElementById('fd-status').textContent = strs.searching;
-            searchArticles(term).then(function(results) {
-                renderArticles(results);
-                return results;
-            }).catch(function() {
-                document.getElementById('fd-status').textContent = strs.searchunavailable;
-            });
-        };
-
-        searchBtn.addEventListener('click', runSearch);
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                runSearch();
-            }
-        });
-
-        document.getElementById('fd-contact-btn').addEventListener('click', showContactForm);
-        document.getElementById('fd-contact-submit').addEventListener('click', submitTicket);
-
-        document.getElementById('fd-contact-back-btn').addEventListener('click', function() {
-            document.getElementById('fd-contact-form').style.display = 'none';
-            document.getElementById('fd-search-panel').style.display = '';
-            document.getElementById('fd-contact-bar').style.display = '';
-            document.getElementById('fd-status').style.display = '';
-            document.getElementById('fd-articles').style.display = '';
-            screenshotData = null;
-        });
-
-        document.getElementById('fd-article-back-btn').addEventListener('click', function() {
-            document.getElementById('fd-article-view').style.display = 'none';
-            document.getElementById('fd-articles').style.display = '';
-            document.getElementById('fd-status').style.display = '';
-        });
-
-        const screenshotFile = document.getElementById('fd-screenshot-file');
-        document.getElementById('fd-screenshot-attach').addEventListener('click', function() {
-            screenshotFile.click();
-        });
-        screenshotFile.addEventListener('change', function() {
-            if (screenshotFile.files && screenshotFile.files[0]) {
-                processScreenshotFile(screenshotFile.files[0]);
-            }
-        });
-
-        document.getElementById('fd-screenshot-clear').addEventListener('click', function() {
-            screenshotData = null;
-            document.getElementById('fd-screenshot-img').src = '';
-            document.getElementById('fd-screenshot-preview-wrap').style.display = 'none';
-            screenshotFile.value = '';
-        });
-
-        document.addEventListener('paste', function(e) {
-            // Only capture pastes while the contact form is open, so pasting
-            // an image elsewhere on the page (e.g. into a text editor) is
-            // never swallowed as a screenshot.
-            const contactForm = document.getElementById('fd-contact-form');
-            if (overlay.style.display !== 'block' || !contactForm || contactForm.style.display !== 'flex') {
-                return;
-            }
-            const clipboard = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData);
-            if (!clipboard || !clipboard.items) {
-                return;
-            }
-            const items = clipboard.items;
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    processScreenshotFile(items[i].getAsFile());
-                    break;
-                }
+/**
+ * Renders a template and appends it to the page body.
+ *
+ * @param {string} template Template name.
+ * @param {Object} context Template context.
+ * @returns {Promise} Resolves once the nodes are in the page.
+ */
+const appendTemplate = (template, context) => Templates.renderForPromise(template, context)
+    .then(({html, js}) => {
+        const nodes = Templates.appendNodeContents(document.body, html, js);
+        nodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                processIcons(node);
             }
         });
-    };
+        return nodes;
+    });
 
-    /**
-     * Loads the required language strings.
-     *
-     * @returns {Promise}
-     */
-    const loadStrings = function() {
-        const requests = STRING_KEYS.map(function(key) {
-            return {key: key, component: 'local_freshdesk'};
-        });
-        return Str.get_strings(requests).then(function(values) {
-            STRING_KEYS.forEach(function(key, idx) {
-                strs[key] = values[idx];
-            });
-            return strs;
-        });
-    };
+/**
+ * Initialise the widget.
+ *
+ * @param {Object} config Plugin configuration passed from PHP.
+ * @returns {Promise}
+ */
+export const init = (config) => {
+    cfg = config || {};
 
-    /**
-     * Renders the help button.
-     *
-     * @returns {Promise}
-     */
-    const renderHelpButton = function() {
-        return Templates.render('local_freshdesk/help_button', {
-            label: strs.gethelp,
-            arialabel: strs.openwidget,
-            icon: cfg.widgetIcon || '🎓'
-        }).then(function(html) {
-            const wrap = document.createElement('div');
-            wrap.innerHTML = html.trim();
-            const btn = wrap.firstChild;
-            processIcons(wrap);
-            document.body.appendChild(btn);
-            return btn;
-        });
-    };
+    if (!cfg.portalUrl || byId('fd-help-btn')) {
+        return Promise.resolve();
+    }
 
-    /**
-     * Renders the passthrough button for guests.
-     *
-     * @returns {Promise}
-     */
-    const renderPassthroughButton = function() {
-        return Templates.render('local_freshdesk/help_button', {
-            label: strs.gethelp,
-            arialabel: strs.openportal,
+    if (cfg.widgetColor) {
+        document.documentElement.style.setProperty('--local-freshdesk-colour', cfg.widgetColor);
+    }
+    const icon = cfg.widgetIcon || DEFAULT_ICON;
+
+    if (!cfg.hasCapability) {
+        // Pass-through mode: a plain link to the Freshdesk portal, no AJAX calls.
+        return appendTemplate('local_freshdesk/help_button', {
             href: cfg.portalUrl + '/support/home',
-            icon: cfg.widgetIcon || '🎓'
-        }).then(function(html) {
-            const wrap = document.createElement('div');
-            wrap.innerHTML = html.trim();
-            const link = wrap.firstChild;
-            processIcons(wrap);
-            document.body.appendChild(link);
-            return link;
+            icon: icon,
         });
-    };
+    }
 
-    /**
-     * Renders the main modal.
-     *
-     * @returns {Promise}
-     */
-    const renderModal = function() {
-        return Templates.render('local_freshdesk/modal', {
-            userName: cfg.userName || '',
-            icon: cfg.widgetIcon || '🎓',
-            s: {
-                title: strs.modaltitle,
-                close: strs.close,
-                searchplaceholder: strs.searchplaceholder,
-                searchbutton: strs.searchbutton,
-                initialprompt: strs.initialprompt,
-                backtoresults: strs.backtoresults,
-                openfullarticle: strs.openfullarticle,
-                back: strs.back,
-                ticketsubmitted: strs.ticketsubmitted,
-                ticketreply: strs.ticketreply,
-                subjectlabel: strs.subjectlabel,
-                messagelabel: strs.messagelabel,
-                messageplaceholder: strs.messageplaceholder,
-                attachscreenshot: strs.attachscreenshot,
-                removescreenshot: strs.removescreenshot,
-                screenshothint: strs.screenshothint,
-                privacynotice: strs.privacynotice,
-                send: strs.send,
-                relatedheading: strs.relatedheading,
-                contactsupport: strs.contactsupport
-            }
-        }).then(function(html) {
-            const wrap = document.createElement('div');
-            wrap.innerHTML = html.trim();
-            const overlay = wrap.firstChild;
-            processIcons(wrap);
-            document.body.appendChild(overlay);
-            return overlay;
+    return loadStrings()
+        .then(() => appendTemplate('local_freshdesk/modal', {userName: cfg.userName || '', icon: icon}))
+        .then(() => appendTemplate('local_freshdesk/help_button', {icon: icon}))
+        .then(() => {
+            wireEvents(byId('fd-modal-overlay'));
+            return true;
         });
-    };
-
-    return {
-        /**
-         * Initialise the widget.
-         *
-         * @param {Object} config Plugin configuration passed from PHP.
-         */
-        init: function(config) {
-            cfg = config || window.local_freshdesk_config || {};
-
-            if (!cfg.portalUrl) {
-                return Promise.resolve();
-            }
-
-            injectStyles();
-
-            return loadStrings().then(function() {
-                if (!cfg.hasCapability) {
-                    return renderPassthroughButton();
-                }
-
-                return Promise.all([renderModal(), renderHelpButton()])
-                    .then(function(resultsArray) {
-                        wireEvents(resultsArray[0]);
-                        return resultsArray;
-                    });
-            });
-        }
-    };
-});
+};

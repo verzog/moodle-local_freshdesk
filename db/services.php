@@ -33,6 +33,7 @@ $functions = [
         'type'          => 'write',
         'ajax'          => true,
         'loginrequired' => true,
+        'capabilities'  => 'local/freshdesk:use',
     ],
     'local_freshdesk_search_articles' => [
         'classname'     => \local_freshdesk\external\search_articles::class,
@@ -40,6 +41,7 @@ $functions = [
         'type'          => 'read',
         'ajax'          => true,
         'loginrequired' => true,
+        'capabilities'  => 'local/freshdesk:use',
     ],
     'local_freshdesk_get_article' => [
         'classname'     => \local_freshdesk\external\get_article::class,
@@ -47,5 +49,6 @@ $functions = [
         'type'          => 'read',
         'ajax'          => true,
         'loginrequired' => true,
+        'capabilities'  => 'local/freshdesk:use',
     ],
 ];
