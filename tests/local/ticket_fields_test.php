@@ -127,6 +127,31 @@ final class ticket_fields_test extends \advanced_testcase {
     }
 
     /**
+     * Nested choices given as a list of one-key objects keep their names, not list positions.
+     *
+     * @return void
+     */
+    public function test_list_of_keyed_nested_choices(): void {
+        $field = ticket_fields::normalise([
+            'name' => 'cf_country',
+            'label' => 'Country',
+            'type' => 'nested_field',
+            'choices' => [['usa' => [['texas' => ['austin', 'houston']], ['ohio' => []]]], ['canada' => []]],
+            'nested_ticket_fields' => [
+                ['name' => 'cf_state', 'label' => 'State', 'level' => 2],
+                ['name' => 'cf_city', 'label' => 'City', 'level' => 3],
+            ],
+        ]);
+
+        $this->assertSame(['usa', 'texas', 'austin', 'houston', 'ohio', 'canada'], array_column($field['options'], 'value'));
+        $this->assertSame([1, 2, 3, 3, 2, 1], array_column($field['options'], 'level'));
+        $this->assertSame(
+            ['cf_country' => 'usa', 'cf_state' => 'texas', 'cf_city' => 'houston'],
+            ticket_fields::map_selection($field, ['usa', 'texas', 'houston'])
+        );
+    }
+
+    /**
      * A complete, valid choice maps to the Freshdesk field names to send.
      *
      * @return void

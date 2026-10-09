@@ -50,6 +50,9 @@ let categoryPromise = null;
 /** @type {Object|null} The type-of-assistance field, or null while the free-text subject is used. */
 let categoryField = null;
 
+/** @type {boolean} Whether the type-of-assistance choices have finished loading (or failed). */
+let categoryReady = false;
+
 /** Identifiers of the language strings the widget needs at runtime. */
 const STRING_KEYS = [
     'articleloaderror', 'errorcategory', 'errormessage', 'errorsubject', 'initialprompt',
@@ -512,6 +515,7 @@ const setupSubjectField = () => {
 
     loadCategoryField().then((field) => {
         categoryField = field;
+        categoryReady = true;
         if (field) {
             renderCategoryField();
         } else {
@@ -595,6 +599,12 @@ const submitTicket = () => {
     const submitBtn = byId('fd-contact-submit');
     let subject = byId('fd-ticket-subject').value.trim();
     let category = [];
+
+    if (cfg.hasCategory && !categoryReady) {
+        // The choices are still loading: wait rather than send a ticket without a type.
+        showContactError(strs.loadingoptions);
+        return;
+    }
 
     if (cfg.hasCategory && categoryField) {
         const selection = getCategorySelection();

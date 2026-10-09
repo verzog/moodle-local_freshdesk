@@ -246,7 +246,8 @@ class ticket_fields {
      *
      * Freshdesk returns choices as a list of strings (simple dropdowns), as an
      * object keyed by value whose members hold the next level (nested fields),
-     * or as a list of objects with value and choices keys. All three are handled.
+     * as a list of such objects (e.g. [{"usa": [{"texas": [...]}]}]), or as a
+     * list of objects with value and choices keys. All four are handled.
      *
      * @param mixed $choices Choices at this level.
      * @param int $parentid Id of the parent option, 0 for the top level.
@@ -261,6 +262,11 @@ class ticket_fields {
         }
 
         foreach ($choices as $key => $child) {
+            if (is_int($key) && is_array($child) && !array_key_exists('value', $child) && !array_is_list($child)) {
+                // A list entry such as {"usa": [...]}: its keys are choices at this same level.
+                self::flatten($child, $parentid, $level, $maxlevel, $options);
+                continue;
+            }
             if (is_array($child) && array_key_exists('value', $child)) {
                 $value    = $child['value'];
                 $children = $child['choices'] ?? $child['nested_options'] ?? [];
