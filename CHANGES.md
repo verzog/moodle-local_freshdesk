@@ -39,7 +39,9 @@ or 5.0 should stay on 2.4.8.
 - Requires Moodle 5.1 or later; tested on 5.1, 5.2 and 5.3 LTS with
   PHP 8.2–8.4, PostgreSQL 17 and MariaDB 11.
 - CI covers Moodle 5.1–5.3 plus Moodle `main`, with coding-standard, mustache,
-  grunt and PHPUnit checks. PHPUnit tests added.
+  grunt, PHPUnit and Behat checks. PHPUnit tests and Behat browser tests
+  added; the browser tests load the widget, so a missing JavaScript build now
+  fails CI.
 
 ## 2.4.8 - 2026-08-03
 

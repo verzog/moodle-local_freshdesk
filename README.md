@@ -270,7 +270,7 @@ local/freshdesk/
 ├── templates/
 │   ├── help_button.mustache                 # Floating Get Help button
 │   └── modal.mustache                       # Support modal markup
-├── tests/                                   # PHPUnit tests (external functions, hook, privacy)
+├── tests/                                   # PHPUnit tests and Behat features (tests/behat/)
 ├── lib.php
 ├── settings.php                             # Admin settings page
 ├── styles.css                               # Widget styles (colour via --local-freshdesk-colour)

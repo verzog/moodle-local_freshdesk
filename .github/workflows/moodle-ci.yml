@@ -119,3 +119,12 @@ jobs:
       - name: PHPUnit tests
         if: ${{ !cancelled() }}
         run: moodle-plugin-ci phpunit --fail-on-warning
+
+      - name: Behat features
+        # Browser tests need a Selenium container, so they run on one cell only: the 5.3 LTS target on PostgreSQL.
+        if: ${{ !cancelled() && matrix.moodle-branch == 'MOODLE_503_STABLE' && matrix.database == 'pgsql' }}
+        run: moodle-plugin-ci behat --profile chrome --auto-rerun 3
+
+      - name: Mark cancelled jobs as failed.
+        if: ${{ cancelled() }}
+        run: exit 1
