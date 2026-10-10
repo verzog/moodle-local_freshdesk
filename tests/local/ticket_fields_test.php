@@ -208,6 +208,82 @@ final class ticket_fields_test extends \advanced_testcase {
     }
 
     /**
+     * The status line reports a usable field with its number of top-level choices.
+     *
+     * @return void
+     */
+    public function test_describe_status_found(): void {
+        $status = ticket_fields::describe_status(self::sample_fields(), 'Types of assistance required');
+
+        $this->assertTrue($status['ok']);
+        $this->assertStringContainsString('cf_types_of_assistance_required', $status['message']);
+        $this->assertStringContainsString('with 3 choices', $status['message']);
+    }
+
+    /**
+     * A field of an unsupported type (e.g. multi-select) is named, with its type.
+     *
+     * @return void
+     */
+    public function test_describe_status_unsupported_type(): void {
+        $fields = array_merge(self::sample_fields(), [[
+            'name' => 'cf_services',
+            'label' => 'Services',
+            'type' => 'custom_multi_select_dropdown',
+            'choices' => ['A', 'B'],
+        ]]);
+
+        $status = ticket_fields::describe_status($fields, 'services');
+
+        $this->assertFalse($status['ok']);
+        $this->assertStringContainsString('custom_multi_select_dropdown', $status['message']);
+    }
+
+    /**
+     * An unknown name lists the dropdown fields that do exist.
+     *
+     * @return void
+     */
+    public function test_describe_status_not_found_lists_dropdowns(): void {
+        $status = ticket_fields::describe_status(self::sample_fields(), 'Type of help');
+
+        $this->assertFalse($status['ok']);
+        $this->assertStringContainsString('"Types of assistance required", "Area"', $status['message']);
+        $this->assertStringNotContainsString('Subject"', $status['message']);
+    }
+
+    /**
+     * A dropdown with no choices is reported as unusable.
+     *
+     * @return void
+     */
+    public function test_describe_status_no_choices(): void {
+        $fields = [['name' => 'cf_empty', 'label' => 'Empty list', 'type' => 'custom_dropdown', 'choices' => []]];
+
+        $status = ticket_fields::describe_status($fields, 'Empty list');
+
+        $this->assertFalse($status['ok']);
+        $this->assertStringContainsString('no choices', $status['message']);
+    }
+
+    /**
+     * Without an API key nothing is requested and the status says what to set up first.
+     *
+     * @return void
+     */
+    public function test_diagnose_not_configured(): void {
+        $this->resetAfterTest();
+        set_config('enabled', 1, 'local_freshdesk');
+        set_config('api_key', '', 'local_freshdesk');
+
+        $status = ticket_fields::diagnose('Types of assistance required');
+
+        $this->assertFalse($status['ok']);
+        $this->assertSame(get_string('categorystatus_noconnection', 'local_freshdesk'), $status['message']);
+        $this->assertNull(ticket_fields::diagnose('  '));
+    }
+
+    /**
      * With the setting empty there is no dropdown field.
      *
      * @return void

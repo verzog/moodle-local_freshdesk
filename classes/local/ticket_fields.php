@@ -79,6 +79,21 @@ class ticket_fields {
      * @return array|null Decoded ticket fields, or null on any failure.
      */
     public static function fetch_fields(): ?array {
+        $result = self::request_fields(true);
+        if ($result['fields'] === null && $result['error'] !== '') {
+            debugging('local_freshdesk: ticket fields fetch failed: ' . $result['error'], DEBUG_DEVELOPER);
+        }
+        return $result['fields'];
+    }
+
+    /**
+     * Requests the ticket fields from Freshdesk and reports why when that fails.
+     *
+     * @param bool $usecache Whether a cached copy may be returned; a fresh copy is always cached.
+     * @return array fields: decoded ticket fields or null; error: '' on success, 'notconfigured'
+     *               when the plugin is not set up, otherwise a short description of the failure.
+     */
+    public static function request_fields(bool $usecache): array {
         global $CFG;
 
         require_once($CFG->libdir . '/filelib.php');
@@ -88,14 +103,16 @@ class ticket_fields {
         $portalurl = rtrim(trim((string) ($config->portal_url ?? '')), '/');
 
         if (empty($config->enabled) || $apikey === '' || stripos($portalurl, 'https://') !== 0) {
-            return null;
+            return ['fields' => null, 'error' => 'notconfigured'];
         }
 
         $cache    = \core_cache\cache::make('local_freshdesk', 'ticket_fields');
         $cachekey = md5($portalurl);
-        $cached   = $cache->get($cachekey);
-        if (is_array($cached)) {
-            return $cached;
+        if ($usecache) {
+            $cached = $cache->get($cachekey);
+            if (is_array($cached)) {
+                return ['fields' => $cached, 'error' => ''];
+            }
         }
 
         $curl = new \curl();
@@ -113,20 +130,84 @@ class ticket_fields {
         $httpcode     = (int) ($curl->get_info()['http_code'] ?? 0);
 
         if ($httpcode !== 200) {
-            debugging(
-                'local_freshdesk: ticket fields fetch failed (HTTP ' . $httpcode . '): ' . substr((string) $responsebody, 0, 300),
-                DEBUG_DEVELOPER
-            );
-            return null;
+            $detail = $httpcode === 0 ? (string) $curl->error : substr(trim((string) $responsebody), 0, 200);
+            return ['fields' => null, 'error' => 'HTTP ' . $httpcode . ($detail !== '' ? ': ' . $detail : '')];
         }
 
         $fields = json_decode((string) $responsebody, true);
         if (!is_array($fields)) {
-            return null;
+            return ['fields' => null, 'error' => 'HTTP 200, but the response was not a list of ticket fields'];
         }
 
         $cache->set($cachekey, $fields);
-        return $fields;
+        return ['fields' => $fields, 'error' => ''];
+    }
+
+    /**
+     * Checks the "Type of assistance field" setting against Freshdesk, bypassing the cache.
+     *
+     * Used by the settings page to tell the administrator whether the field was found.
+     *
+     * @param string $identifier The setting's value.
+     * @return array|null ok: whether the dropdown will be shown; message: what was found or why not.
+     *                    Null when the setting is empty.
+     */
+    public static function diagnose(string $identifier): ?array {
+        if (trim($identifier) === '') {
+            return null;
+        }
+
+        $result = self::request_fields(false);
+        if ($result['error'] === 'notconfigured') {
+            return ['ok' => false, 'message' => get_string('categorystatus_noconnection', 'local_freshdesk')];
+        }
+        if ($result['fields'] === null) {
+            return ['ok' => false, 'message' => get_string('categorystatus_fetchfailed', 'local_freshdesk', $result['error'])];
+        }
+        return self::describe_status($result['fields'], $identifier);
+    }
+
+    /**
+     * Describes whether the named field exists among the given ticket fields and can be used.
+     *
+     * @param array $fields Ticket fields as returned by the Freshdesk API.
+     * @param string $identifier Field name or label from the setting.
+     * @return array ok: whether the dropdown will be shown; message: what was found or why not.
+     */
+    public static function describe_status(array $fields, string $identifier): array {
+        $field = self::find_field($fields, $identifier);
+        if ($field !== null) {
+            $count = count(array_filter($field['options'], fn(array $option): bool => $option['parentid'] === 0));
+            if ($count === 0) {
+                return ['ok' => false, 'message' => get_string('categorystatus_nochoices', 'local_freshdesk', $field['label'])];
+            }
+            return ['ok' => true, 'message' => get_string('categorystatus_ok', 'local_freshdesk', (object) [
+                'label' => $field['label'],
+                'name'  => $field['name'],
+                'count' => $count,
+            ])];
+        }
+
+        // A field with that name exists but is not a type the widget can show.
+        foreach ($fields as $candidate) {
+            if (is_array($candidate) && self::matches($candidate, $identifier)) {
+                return ['ok' => false, 'message' => get_string('categorystatus_unsupported', 'local_freshdesk', (object) [
+                    'label' => (string) ($candidate['label'] ?? $candidate['name'] ?? ''),
+                    'type'  => (string) ($candidate['type'] ?? ''),
+                ])];
+            }
+        }
+
+        $available = [];
+        foreach ($fields as $candidate) {
+            if (is_array($candidate) && in_array($candidate['type'] ?? '', self::SUPPORTED_TYPES, true)) {
+                $available[] = '"' . (string) ($candidate['label'] ?? $candidate['name'] ?? '') . '"';
+            }
+        }
+        return ['ok' => false, 'message' => get_string('categorystatus_notfound', 'local_freshdesk', (object) [
+            'identifier' => trim($identifier),
+            'available'  => $available ? implode(', ', $available) : get_string('none'),
+        ])];
     }
 
     /**
@@ -137,19 +218,33 @@ class ticket_fields {
      * @return array|null The normalised field, or null when no supported field matches.
      */
     public static function find_field(array $fields, string $identifier): ?array {
-        $wanted = \core_text::strtolower(trim($identifier));
-
         foreach ($fields as $field) {
-            if (!is_array($field) || !in_array($field['type'] ?? '', self::SUPPORTED_TYPES, true)) {
-                continue;
-            }
-            foreach (['name', 'label', 'label_for_customers'] as $key) {
-                if (isset($field[$key]) && \core_text::strtolower(trim((string) $field[$key])) === $wanted) {
-                    return self::normalise($field);
-                }
+            if (
+                is_array($field)
+                && in_array($field['type'] ?? '', self::SUPPORTED_TYPES, true)
+                && self::matches($field, $identifier)
+            ) {
+                return self::normalise($field);
             }
         }
         return null;
+    }
+
+    /**
+     * Whether a ticket field's API name or label matches the identifier (case-insensitive).
+     *
+     * @param array $field A single ticket field from the Freshdesk API.
+     * @param string $identifier Field name or label.
+     * @return bool
+     */
+    private static function matches(array $field, string $identifier): bool {
+        $wanted = \core_text::strtolower(trim($identifier));
+        foreach (['name', 'label', 'label_for_customers'] as $key) {
+            if (isset($field[$key]) && \core_text::strtolower(trim((string) $field[$key])) === $wanted) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

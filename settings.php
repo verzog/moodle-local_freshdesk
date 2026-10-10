@@ -56,7 +56,7 @@ if ($hassiteconfig) {
         ''
     ));
 
-    $settings->add(new admin_setting_configtext(
+    $settings->add(new \local_freshdesk\admin\setting_category_field(
         'local_freshdesk/category_field',
         get_string('category_field', 'local_freshdesk'),
         get_string('category_field_desc', 'local_freshdesk'),
