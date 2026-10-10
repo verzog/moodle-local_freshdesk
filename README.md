@@ -91,7 +91,9 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 > subject; the choice is sent in that field and becomes the ticket subject.
 > Choices are read from Freshdesk (refreshed every 15 minutes), so add or rename
 > them in Freshdesk Admin → Workflows → Ticket Fields. Dependent (nested) fields
-> show a second list only when the chosen option has sub-choices.
+> show a second list only when the chosen option has sub-choices. After saving,
+> a status line under the setting confirms the field was found (and how many
+> choices it has) or explains what is wrong.
 
 > **Important:** the portal URL must be your `*.freshdesk.com` domain (the
 > domain the Freshdesk REST API lives on), and it must be HTTPS. A custom

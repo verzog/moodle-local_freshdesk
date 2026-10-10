@@ -5,6 +5,16 @@ recorded here. Versions match `$plugin->release` in `version.php`. The section
 for each release is used verbatim as that version's GitHub release notes and can
 be pasted into the Moodle Marketplace release-notes field.
 
+## 2.6.1 - 2026-10-10
+
+### Improved
+- **Status line for the Type of assistance field.** The setting now shows,
+  directly beneath it, whether Freshdesk has a usable field with that name: for
+  example *found "Types of assistance required" with 6 choices*, or why not —
+  no field with that name (listing the dropdown fields that do exist), a field
+  type the widget cannot show (such as multi-select), no choices, or the
+  Freshdesk HTTP error. It is checked live each time the settings page loads.
+
 ## 2.6.0 - 2026-10-10
 
 ### New

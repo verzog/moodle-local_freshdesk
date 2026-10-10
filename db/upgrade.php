@@ -252,5 +252,11 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026101000, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026101001) {
+        // The "Type of assistance field" setting now shows a live status line saying
+        // whether Freshdesk has a usable dropdown field with that name. No database changes.
+        upgrade_plugin_savepoint(true, 2026101001, 'local', 'freshdesk');
+    }
+
     return true;
 }
