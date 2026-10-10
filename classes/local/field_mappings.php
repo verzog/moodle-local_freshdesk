@@ -89,14 +89,15 @@ class field_mappings {
      * @param \stdClass $user The submitting user.
      * @return array custom: cf_ fields for custom_fields; standard: other ticket fields;
      *               empty: Freshdesk field => Moodle field for mappings left out because
-     *               the user's value is empty.
+     *               the user's value is empty; missing: the same for mappings naming a
+     *               custom profile field that does not exist.
      */
     public static function resolve(\stdClass $user): array {
         global $CFG;
 
         require_once($CFG->dirroot . '/user/profile/lib.php');
 
-        $result   = ['custom' => [], 'standard' => [], 'empty' => []];
+        $result   = ['custom' => [], 'standard' => [], 'empty' => [], 'missing' => []];
         $mappings = self::parse((string) get_config('local_freshdesk', 'field_mappings'))['mappings'];
         if (!$mappings) {
             return $result;
@@ -107,7 +108,13 @@ class field_mappings {
         foreach ($mappings as $freshdeskfield => $moodlefield) {
             if (str_starts_with($moodlefield, 'profile_field_')) {
                 $profile ??= profile_user_record((int) $user->id, false);
-                $value = $profile->{substr($moodlefield, strlen('profile_field_'))} ?? '';
+                $shortname = substr($moodlefield, strlen('profile_field_'));
+                if (!property_exists($profile, $shortname)) {
+                    // A mistyped or deleted profile field: report it as such, not as empty.
+                    $result['missing'][$freshdeskfield] = $moodlefield;
+                    continue;
+                }
+                $value = $profile->{$shortname};
             } else {
                 $value = $user->{$moodlefield} ?? '';
             }

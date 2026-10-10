@@ -266,10 +266,17 @@ class submit_ticket extends external_api {
         if ($httpcode !== 201) {
             $detail = self::describe_freshdesk_error($httpcode, (string) $responsebody, (string) $curl->error);
             // Explain the commonest cause of a mandatory-field rejection: a mapped field that
-            // was not sent because this user's Moodle value is empty (e.g. no ID number).
-            if ($mapped['empty']) {
-                $empty   = self::describe_empty_mappings($mapped['empty']);
-                $detail .= ' ' . get_string('mappedfieldsempty', 'local_freshdesk', $empty);
+            // was not sent because this user's Moodle value is empty (e.g. no ID number) or
+            // because the mapping names a profile field that does not exist. Fields filled
+            // another way (type of assistance, routing settings) were sent, so leave them out.
+            $sent    = $customfields + $extrafields;
+            $empty   = array_diff_key($mapped['empty'], $sent);
+            $missing = array_diff_key($mapped['missing'], $sent);
+            if ($empty) {
+                $detail .= ' ' . get_string('mappedfieldsempty', 'local_freshdesk', self::describe_empty_mappings($empty));
+            }
+            if ($missing) {
+                $detail .= ' ' . get_string('mappedfieldsmissing', 'local_freshdesk', self::describe_empty_mappings($missing));
             }
             return self::failure($detail);
         }

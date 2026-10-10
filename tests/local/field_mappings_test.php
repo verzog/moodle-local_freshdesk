@@ -78,6 +78,21 @@ final class field_mappings_test extends \advanced_testcase {
     }
 
     /**
+     * A mapping to a profile field that does not exist is reported as missing, not empty.
+     *
+     * @return void
+     */
+    public function test_resolve_reports_missing_profile_field(): void {
+        $this->resetAfterTest();
+        set_config('field_mappings', 'cf_level = profile_field_nosuchfield', 'local_freshdesk');
+
+        $result = field_mappings::resolve($this->getDataGenerator()->create_user());
+
+        $this->assertSame(['cf_level' => 'profile_field_nosuchfield'], $result['missing']);
+        $this->assertSame([], $result['empty']);
+    }
+
+    /**
      * Identifiers with leading zeros stay as text so no digits are lost.
      *
      * @return void
@@ -135,7 +150,7 @@ final class field_mappings_test extends \advanced_testcase {
         set_config('field_mappings', '', 'local_freshdesk');
 
         $this->assertSame(
-            ['custom' => [], 'standard' => [], 'empty' => []],
+            ['custom' => [], 'standard' => [], 'empty' => [], 'missing' => []],
             field_mappings::resolve($this->getDataGenerator()->create_user())
         );
     }
