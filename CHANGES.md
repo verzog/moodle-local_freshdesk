@@ -12,8 +12,11 @@ be pasted into the Moodle Marketplace release-notes field.
   user's Moodle profile, one per line, e.g. `cf_imis_id = idnumber`. For
   Freshdesk accounts that make a field such as an iMIS/member ID mandatory,
   which otherwise rejects every ticket with "Validation failed". Core user
-  fields and custom profile fields (`profile_field_<shortname>`) can be used;
-  whole numbers are sent as numbers, and empty values are left out.
+  fields and custom profile fields (`profile_field_<shortname>`) can be used.
+  Values for Freshdesk number fields are sent as numbers (other fields stay
+  text), empty values are left out, and fields the plugin sets itself
+  (subject, description, email…) cannot be mapped. The privacy notice on the
+  contact form now mentions profile details the administrator includes.
 
 ### Improved
 - **Site administrators see why a ticket was rejected.** Instead of only
