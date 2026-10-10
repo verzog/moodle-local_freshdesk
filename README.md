@@ -70,6 +70,7 @@ Moodle treats the rename as a fresh install and runs `db/install.php`, which aut
 | Freshdesk portal URL | Your Freshdesk account URL. The widget stays hidden until this is set | *(empty)* |
 | Freshdesk API key | Found in Freshdesk under Profile Settings → Your API Key | *(empty)* |
 | Type of assistance field | Optional. Label or API name of a Freshdesk dropdown ticket field (e.g. `Types of assistance required`). The contact form shows its choices as a dropdown instead of a free-text subject | *(empty)* |
+| Extra ticket fields | Optional. Fill Freshdesk fields from the user's Moodle profile, one per line, e.g. `cf_imis_id = idnumber` | *(empty)* |
 | Default ticket type | Optional. Sent as the ticket `type`; must exactly match one of the values in Freshdesk Admin → Workflows → Ticket Fields → Type | *(empty)* |
 | Default group ID | Optional. Numeric Freshdesk group ID to assign new tickets to | *(empty)* |
 | Default agent ID | Optional. Numeric Freshdesk agent ID to assign new tickets to | *(empty)* |
@@ -193,6 +194,10 @@ If the widget is "not working" on a new site, work through these in order:
      submission — see the **Mandatory Freshdesk fields** note under
      Configuration. This is the most common cause of "Failed to submit
      ticket" while knowledge base search still works.
+   - Site administrators see Freshdesk's reason directly on the contact form
+     (2.6.2 and later). A `missing_field` error for a `cf_…` field such as
+     `cf_imis_id` means Freshdesk requires a value users don't enter: map it
+     from their profile under *Extra ticket fields*, e.g. `cf_imis_id = idnumber`.
    - HTTP 401 means a wrong API key — note that API keys are per-agent *and*
      per-portal, so a key from a different Freshdesk account always fails.
      The plugin trims pasted whitespace from the key automatically.

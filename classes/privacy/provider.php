@@ -78,6 +78,7 @@ class provider implements
                 'userrole'    => 'privacy:metadata:freshdesk:userrole',
                 'message'     => 'privacy:metadata:freshdesk:message',
                 'assistancetype' => 'privacy:metadata:freshdesk:assistancetype',
+                'mappedfields' => 'privacy:metadata:freshdesk:mappedfields',
                 'screenshot'  => 'privacy:metadata:freshdesk:screenshot',
             ],
             'privacy:metadata:freshdesk'

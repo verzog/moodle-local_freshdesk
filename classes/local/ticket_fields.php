@@ -80,7 +80,7 @@ class ticket_fields {
      */
     public static function fetch_fields(): ?array {
         $result = self::request_fields(true);
-        if ($result['fields'] === null && $result['error'] !== '') {
+        if ($result['fields'] === null && $result['error'] !== '' && $result['error'] !== 'notconfigured') {
             debugging('local_freshdesk: ticket fields fetch failed: ' . $result['error'], DEBUG_DEVELOPER);
         }
         return $result['fields'];

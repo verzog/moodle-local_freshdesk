@@ -5,6 +5,25 @@ recorded here. Versions match `$plugin->release` in `version.php`. The section
 for each release is used verbatim as that version's GitHub release notes and can
 be pasted into the Moodle Marketplace release-notes field.
 
+## 2.6.2 - 2026-10-10
+
+### New
+- **Extra ticket fields.** Fill Freshdesk ticket fields from the submitting
+  user's Moodle profile, one per line, e.g. `cf_imis_id = idnumber`. For
+  Freshdesk accounts that make a field such as an iMIS/member ID mandatory,
+  which otherwise rejects every ticket with "Validation failed". Core user
+  fields and custom profile fields (`profile_field_<shortname>`) can be used.
+  Values for Freshdesk number fields are sent as numbers (other fields stay
+  text), empty values are left out, and fields the plugin sets itself
+  (subject, description, email…) cannot be mapped. The privacy notice on the
+  contact form now mentions profile details the administrator includes.
+
+### Improved
+- **Site administrators see why a ticket was rejected.** Instead of only
+  "Failed to submit ticket", admins now see Freshdesk's reason on the form,
+  e.g. `Validation failed — custom_fields.cf_imis_id: It should be a/an
+  Integer [missing_field]`. Other users still see the friendly message only.
+
 ## 2.6.1 - 2026-10-10
 
 ### Improved

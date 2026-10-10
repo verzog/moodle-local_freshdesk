@@ -94,6 +94,43 @@ final class submit_ticket_test extends \advanced_testcase {
     }
 
     /**
+     * Site administrators get the reason back instead of only the generic error.
+     *
+     * @return void
+     */
+    public function test_admin_receives_reason(): void {
+        $this->setAdminUser();
+        set_config('enabled', 0, 'local_freshdesk');
+
+        $result = submit_ticket::execute('Subject', 'Message', 'https://example.com/', '', '');
+        $result = \core_external\external_api::clean_returnvalue(submit_ticket::execute_returns(), $result);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('Plugin disabled or portal URL / API key not configured.', $result['errordetail']);
+    }
+
+    /**
+     * Freshdesk validation errors are summarised field by field.
+     *
+     * @return void
+     */
+    public function test_describe_freshdesk_error(): void {
+        $body = '{"description":"Validation failed","errors":[{"field":"custom_fields.cf_imis_id",' .
+            '"message":"It should be a/an Integer","code":"missing_field"}]}';
+
+        $this->assertSame(
+            'Freshdesk returned HTTP 400: Validation failed — ' .
+                'custom_fields.cf_imis_id: It should be a/an Integer [missing_field]',
+            submit_ticket::describe_freshdesk_error(400, $body)
+        );
+        $this->assertSame(
+            'Freshdesk returned HTTP 401: Unauthorised',
+            submit_ticket::describe_freshdesk_error(401, 'Unauthorised')
+        );
+        $this->assertSame('Could not reach Freshdesk: timed out', submit_ticket::describe_freshdesk_error(0, '', 'timed out'));
+    }
+
+    /**
      * Guests cannot submit tickets.
      *
      * @return void

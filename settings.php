@@ -64,6 +64,14 @@ if ($hassiteconfig) {
         PARAM_TEXT
     ));
 
+    $settings->add(new \local_freshdesk\admin\setting_field_mappings(
+        'local_freshdesk/field_mappings',
+        get_string('field_mappings', 'local_freshdesk'),
+        get_string('field_mappings_desc', 'local_freshdesk'),
+        '',
+        PARAM_RAW_TRIMMED
+    ));
+
     $settings->add(new admin_setting_configtext(
         'local_freshdesk/ticket_type',
         get_string('ticket_type', 'local_freshdesk'),

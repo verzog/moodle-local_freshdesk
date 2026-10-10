@@ -33,7 +33,7 @@
 
 import Ajax from 'core/ajax';
 import Templates from 'core/templates';
-import {getStrings} from 'core/str';
+import {getString, getStrings} from 'core/str';
 
 /** @type {Object} Plugin configuration passed from PHP via js_call_amd. */
 let cfg = {};
@@ -641,13 +641,38 @@ const submitTicket = () => {
         if (result.success) {
             setDisplay('fd-contact-fields', 'none');
             setDisplay('fd-contact-success', 'block');
+        } else {
+            // Only site administrators receive a reason; show it under the usual message.
+            showSubmitFailure(result.errordetail || '');
         }
         return result;
-    }).catch(() => {
-        showContactError(strs.ticketsubmiterror);
-        submitBtn.disabled = false;
-        submitBtn.textContent = strs.send;
+    }).catch((error) => {
+        showSubmitFailure(cfg.isAdmin && error && error.message ? error.message : '');
     });
+};
+
+/**
+ * Shows the "failed to submit" message, plus the reason for site administrators.
+ *
+ * @param {string} detail Why the ticket was not created, or '' when there is nothing to show.
+ */
+const showSubmitFailure = (detail) => {
+    const submitBtn = byId('fd-contact-submit');
+    submitBtn.disabled = false;
+    submitBtn.textContent = strs.send;
+
+    showContactError(strs.ticketsubmiterror);
+    if (!detail) {
+        return;
+    }
+    getString('ticketsubmiterror_admin', 'local_freshdesk', detail).then((text) => {
+        const errorEl = byId('fd-contact-error');
+        const line = document.createElement('span');
+        line.className = 'fd-admin-detail';
+        line.textContent = text;
+        errorEl.appendChild(line);
+        return text;
+    }).catch(() => null);
 };
 
 /**
