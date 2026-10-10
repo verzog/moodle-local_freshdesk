@@ -31,6 +31,7 @@ use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_freshdesk\local\field_mappings;
 use local_freshdesk\local\ticket_fields;
 
 /**
@@ -121,24 +122,12 @@ class submit_ticket extends external_api {
         $portalurl = rtrim(trim((string) ($config->portal_url ?? '')), '/');
 
         if (empty($config->enabled) || $apikey === '' || $portalurl === '') {
-            throw new \moodle_exception(
-                'errorsubmitting',
-                'local_freshdesk',
-                '',
-                null,
-                'Plugin disabled or portal URL / API key not configured.'
-            );
+            return self::failure('Plugin disabled or portal URL / API key not configured.');
         }
 
         // Reject non-HTTPS portal URLs to ensure the API key is never sent in clear text.
         if (stripos($portalurl, 'https://') !== 0) {
-            throw new \moodle_exception(
-                'errorsubmitting',
-                'local_freshdesk',
-                '',
-                null,
-                'Portal URL must start with https://.'
-            );
+            return self::failure('Portal URL must start with https://.');
         }
 
         // Build HTML ticket description with page context.
@@ -193,13 +182,7 @@ class submit_ticket extends external_api {
             $field = ticket_fields::get_configured_field();
             $selection = $field === null ? null : ticket_fields::map_selection($field, $params['category']);
             if ($selection === null) {
-                throw new \moodle_exception(
-                    'errorsubmitting',
-                    'local_freshdesk',
-                    '',
-                    null,
-                    'The chosen type of assistance is not a current choice of the configured Freshdesk field.'
-                );
+                return self::failure('The chosen type of assistance is not a current choice of the configured Freshdesk field.');
             }
             if ($field['type'] === 'default_ticket_type') {
                 $extrafields['type'] = reset($selection);
@@ -207,6 +190,13 @@ class submit_ticket extends external_api {
                 $customfields = $selection;
             }
         }
+
+        // Extra fields filled from the user's Moodle profile (e.g. cf_imis_id = idnumber), for
+        // Freshdesk accounts that make such fields mandatory. They never override the
+        // type of assistance or the routing settings above.
+        $mapped       = field_mappings::resolve($USER);
+        $customfields = $customfields + $mapped['custom'];
+        $extrafields  = $extrafields + $mapped['standard'];
 
         // Decode and validate screenshot if one was supplied.
         $screenshotpath = '';
@@ -248,7 +238,7 @@ class submit_ticket extends external_api {
                 $postdata[$name] = (string) $value;
             }
             foreach ($customfields as $name => $value) {
-                $postdata['custom_fields[' . $name . ']'] = $value;
+                $postdata['custom_fields[' . $name . ']'] = (string) $value;
             }
             $responsebody = $curl->post($portalurl . '/api/v2/tickets', $postdata);
             @unlink($screenshotpath);
@@ -274,13 +264,7 @@ class submit_ticket extends external_api {
         $httpcode = (int) ($info['http_code'] ?? 0);
 
         if ($httpcode !== 201) {
-            throw new \moodle_exception(
-                'errorsubmitting',
-                'local_freshdesk',
-                '',
-                null,
-                'HTTP ' . $httpcode . ' — ' . substr((string) $responsebody, 0, 300)
-            );
+            return self::failure(self::describe_freshdesk_error($httpcode, (string) $responsebody, (string) $curl->error));
         }
 
         $event = \local_freshdesk\event\ticket_submitted::create([
@@ -293,13 +277,78 @@ class submit_ticket extends external_api {
     }
 
     /**
+     * Reports a failed submission.
+     *
+     * Site administrators get the reason back so the widget can show it on the form.
+     * Everyone else gets the generic error, with the reason only in the exception's
+     * debug info (shown when developer debugging is on), because Freshdesk's replies
+     * can contain account details users should not see.
+     *
+     * @param string $detail What went wrong.
+     * @return array Result for site administrators.
+     * @throws \moodle_exception For everyone else.
+     */
+    private static function failure(string $detail): array {
+        if (is_siteadmin()) {
+            return ['success' => false, 'errordetail' => $detail];
+        }
+        throw new \moodle_exception('errorsubmitting', 'local_freshdesk', '', null, $detail);
+    }
+
+    /**
+     * Turns a failed Freshdesk response into a short, readable description.
+     *
+     * Freshdesk validation errors look like {"description": "Validation failed",
+     * "errors": [{"field": "cf_x", "message": "...", "code": "missing_field"}]};
+     * each listed field is shown with its message and code.
+     *
+     * @param int $httpcode HTTP status, 0 when the request did not complete.
+     * @param string $body Response body.
+     * @param string $curlerror Transport error, if any.
+     * @return string
+     */
+    public static function describe_freshdesk_error(int $httpcode, string $body, string $curlerror = ''): string {
+        if ($httpcode === 0) {
+            return 'Could not reach Freshdesk' . ($curlerror !== '' ? ': ' . $curlerror : '.');
+        }
+
+        $data = json_decode($body, true);
+        if (is_array($data)) {
+            $parts = [];
+            foreach (($data['errors'] ?? []) as $error) {
+                if (is_array($error)) {
+                    $parts[] = trim(
+                        ($error['field'] ?? '') . ': ' . ($error['message'] ?? '') .
+                        (isset($error['code']) ? ' [' . $error['code'] . ']' : ''),
+                        ': '
+                    );
+                }
+            }
+            $summary = (string) ($data['description'] ?? $data['message'] ?? '');
+            if ($parts) {
+                $summary .= ($summary !== '' ? ' — ' : '') . implode('; ', $parts);
+            }
+            if ($summary !== '') {
+                return 'Freshdesk returned HTTP ' . $httpcode . ': ' . \core_text::substr($summary, 0, 600);
+            }
+        }
+
+        return 'Freshdesk returned HTTP ' . $httpcode . ': ' . \core_text::substr(trim($body), 0, 300);
+    }
+
+    /**
      * Defines the return value structure.
      *
      * @return external_single_structure
      */
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
-            'success' => new external_value(PARAM_BOOL, 'Whether the ticket was created successfully'),
+            'success'     => new external_value(PARAM_BOOL, 'Whether the ticket was created successfully'),
+            'errordetail' => new external_value(
+                PARAM_TEXT,
+                'Why the ticket was not created; returned to site administrators only',
+                VALUE_OPTIONAL
+            ),
         ]);
     }
 }

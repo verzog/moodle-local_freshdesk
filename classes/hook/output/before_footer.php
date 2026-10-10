@@ -118,6 +118,8 @@ class before_footer {
             'userRole'       => $rolelabel,
             'isLoggedIn'     => $isloggedin,
             'hasCapability'  => $hascap,
+            // Site administrators are shown Freshdesk's reason when a ticket is rejected.
+            'isAdmin'        => $isadmin,
             // The contact form asks for a type of assistance instead of a free-text subject.
             'hasCategory'    => trim((string) ($config->category_field ?? '')) !== '',
             'widgetColor'    => $widgetcolor,

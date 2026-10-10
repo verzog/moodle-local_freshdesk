@@ -258,5 +258,12 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026101001, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026101002) {
+        // New "Extra ticket fields" setting maps Freshdesk fields to Moodle profile fields;
+        // site administrators now see Freshdesk's reason when a ticket is rejected.
+        // No database changes.
+        upgrade_plugin_savepoint(true, 2026101002, 'local', 'freshdesk');
+    }
+
     return true;
 }
