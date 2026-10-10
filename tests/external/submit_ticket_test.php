@@ -131,6 +131,18 @@ final class submit_ticket_test extends \advanced_testcase {
     }
 
     /**
+     * Mappings left out for an empty value are named for the admin reason.
+     *
+     * @return void
+     */
+    public function test_describe_empty_mappings(): void {
+        $this->assertSame(
+            'cf_imis_id (from idnumber), cf_level (from profile_field_level)',
+            submit_ticket::describe_empty_mappings(['cf_imis_id' => 'idnumber', 'cf_level' => 'profile_field_level'])
+        );
+    }
+
+    /**
      * Guests cannot submit tickets.
      *
      * @return void

@@ -5,6 +5,15 @@ recorded here. Versions match `$plugin->release` in `version.php`. The section
 for each release is used verbatim as that version's GitHub release notes and can
 be pasted into the Moodle Marketplace release-notes field.
 
+## 2.6.3 - 2026-10-10
+
+### Improved
+- **Clearer reason when a mapped field is empty.** If Freshdesk rejects a ticket
+  and an *Extra ticket fields* mapping was left out because the submitting
+  user's Moodle value is empty, the admin reason now says so, e.g. *Note: these
+  Extra ticket fields were not sent because this user's Moodle value is empty:
+  cf_imis_id (from idnumber).* — typically an account with no ID number.
+
 ## 2.6.2 - 2026-10-10
 
 ### New

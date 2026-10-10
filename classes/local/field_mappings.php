@@ -87,14 +87,16 @@ class field_mappings {
      * text (so a phone number such as 5551234 is not turned into a number).
      *
      * @param \stdClass $user The submitting user.
-     * @return array custom: cf_ fields for custom_fields; standard: other ticket fields.
+     * @return array custom: cf_ fields for custom_fields; standard: other ticket fields;
+     *               empty: Freshdesk field => Moodle field for mappings left out because
+     *               the user's value is empty.
      */
     public static function resolve(\stdClass $user): array {
         global $CFG;
 
         require_once($CFG->dirroot . '/user/profile/lib.php');
 
-        $result   = ['custom' => [], 'standard' => []];
+        $result   = ['custom' => [], 'standard' => [], 'empty' => []];
         $mappings = self::parse((string) get_config('local_freshdesk', 'field_mappings'))['mappings'];
         if (!$mappings) {
             return $result;
@@ -112,6 +114,7 @@ class field_mappings {
 
             $value = trim((string) $value);
             if ($value === '') {
+                $result['empty'][$freshdeskfield] = $moodlefield;
                 continue;
             }
 

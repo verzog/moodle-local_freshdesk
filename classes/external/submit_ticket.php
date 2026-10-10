@@ -264,7 +264,14 @@ class submit_ticket extends external_api {
         $httpcode = (int) ($info['http_code'] ?? 0);
 
         if ($httpcode !== 201) {
-            return self::failure(self::describe_freshdesk_error($httpcode, (string) $responsebody, (string) $curl->error));
+            $detail = self::describe_freshdesk_error($httpcode, (string) $responsebody, (string) $curl->error);
+            // Explain the commonest cause of a mandatory-field rejection: a mapped field that
+            // was not sent because this user's Moodle value is empty (e.g. no ID number).
+            if ($mapped['empty']) {
+                $empty   = self::describe_empty_mappings($mapped['empty']);
+                $detail .= ' ' . get_string('mappedfieldsempty', 'local_freshdesk', $empty);
+            }
+            return self::failure($detail);
         }
 
         $event = \local_freshdesk\event\ticket_submitted::create([
@@ -293,6 +300,23 @@ class submit_ticket extends external_api {
             return ['success' => false, 'errordetail' => $detail];
         }
         throw new \moodle_exception('errorsubmitting', 'local_freshdesk', '', null, $detail);
+    }
+
+    /**
+     * Lists mappings left out for this user, e.g. "cf_imis_id (from idnumber)".
+     *
+     * @param array $empty Freshdesk field => Moodle field.
+     * @return string
+     */
+    public static function describe_empty_mappings(array $empty): string {
+        $parts = [];
+        foreach ($empty as $freshdeskfield => $moodlefield) {
+            $parts[] = get_string('mappedfieldfrom', 'local_freshdesk', (object) [
+                'freshdesk' => $freshdeskfield,
+                'moodle'    => $moodlefield,
+            ]);
+        }
+        return implode(', ', $parts);
     }
 
     /**

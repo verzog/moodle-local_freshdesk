@@ -73,6 +73,8 @@ final class field_mappings_test extends \advanced_testcase {
         $this->assertSame(['cf_imis_id' => 204517, 'cf_member_type' => 'Fellow'], $result['custom']);
         // A phone number stays text; the iMIS ID becomes a number (Freshdesk types unknown here).
         $this->assertSame(['phone' => '204517'], $result['standard']);
+        // The empty department is reported, so the admin reason can name it.
+        $this->assertSame(['cf_department' => 'department'], $result['empty']);
     }
 
     /**
@@ -132,6 +134,9 @@ final class field_mappings_test extends \advanced_testcase {
         $this->resetAfterTest();
         set_config('field_mappings', '', 'local_freshdesk');
 
-        $this->assertSame(['custom' => [], 'standard' => []], field_mappings::resolve($this->getDataGenerator()->create_user()));
+        $this->assertSame(
+            ['custom' => [], 'standard' => [], 'empty' => []],
+            field_mappings::resolve($this->getDataGenerator()->create_user())
+        );
     }
 }
