@@ -265,5 +265,11 @@ function xmldb_local_freshdesk_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2026101002, 'local', 'freshdesk');
     }
 
+    if ($oldversion < 2026101003) {
+        // Admin failure reason now names Extra ticket fields left out because the user's
+        // Moodle value is empty. No database changes.
+        upgrade_plugin_savepoint(true, 2026101003, 'local', 'freshdesk');
+    }
+
     return true;
 }
