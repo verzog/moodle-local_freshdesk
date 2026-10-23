@@ -17,4 +17,4 @@ permissions:
 jobs:
   # The checks, Moodle/PHP/database matrix and settings live in verzog/moodle-ci-workflows.
   ci:
-    uses: verzog/moodle-ci-workflows/.github/workflows/moodle-plugin-ci.yml@vdiddy/more-inputs
+    uses: verzog/moodle-ci-workflows/.github/workflows/moodle-plugin-ci.yml@v1
